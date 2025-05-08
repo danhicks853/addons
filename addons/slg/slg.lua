@@ -5,12 +5,44 @@ SLG.version = GetAddOnMetadata(addonName, "Version")
 local addon = LibStub("AceAddon-3.0"):NewAddon(addonName, "AceConsole-3.0")
 SLG.addon = addon
 
--- Get the SynastriaCoreLib
-local SCL = LibStub("SynastriaCoreLib-1.0")
-
 -- Initialize SLG tables
 SLG.itemFrames = {}
 SLG.lootedItems = {} -- Track items that have been looted but not attuned
+
+-- Local attunement system using native WoW API
+local function IsAttuned(itemId)
+    if not itemId then return false end
+    local itemLink = select(2, GetItemInfo(itemId))
+    if not itemLink then return false end
+    
+    -- Check if item can be attuned and if it's already at 100%
+    if CanAttuneItemHelper and GetItemLinkAttuneProgress then
+        local canAttune = CanAttuneItemHelper(itemId)
+        if canAttune >= 1 then
+            local progress = GetItemLinkAttuneProgress(itemLink)
+            return progress >= 100
+        end
+    end
+    return false
+end
+
+local function GetAttuneProgress(itemId)
+    if not itemId then return 0 end
+    local itemLink = select(2, GetItemInfo(itemId))
+    if not itemLink then return 0 end
+    
+    -- Get attunement progress if available
+    if GetItemLinkAttuneProgress then
+        return GetItemLinkAttuneProgress(itemLink) or 0
+    end
+    return 0
+end
+
+-- Replace all SCL.IsAttuned calls with our local IsAttuned function
+local SCL = {
+    IsAttuned = IsAttuned,
+    GetAttuneProgress = GetAttuneProgress
+}
 
 -- WotLK Raid Configuration
 SLG.RaidInfo = {
