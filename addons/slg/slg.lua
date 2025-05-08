@@ -992,6 +992,37 @@ function SLG:VerifyItemData(item)
     return item
 end
 
+-- Helper function to get a list of potential difficulty keys to try
+function SLG:GetZoneItemDifficultyKeys(difficulty, instanceType, raidInfo)
+    local keysToTry = {}
+    local size = instanceType:match("raid(%d+)") or instanceType:match("dungeon(%d+)") -- Match raid or dungeon size
+    local isHeroic = difficulty == "heroic"
+
+    if size then -- For sized instances (10/25 man raids, or future sized dungeons)
+        if isHeroic then
+            table.insert(keysToTry, size .. "ManHeroic") -- e.g., 25ManHeroic
+            table.insert(keysToTry, "Heroic (" .. size .. ")") -- e.g, Heroic (25)
+            table.insert(keysToTry, size .. "Heroic") -- e.g., 25Heroic (less common but possible)
+        else
+            table.insert(keysToTry, size .. "Man") -- e.g., 25Man
+            table.insert(keysToTry, "Normal (" .. size .. ")") -- e.g, Normal (25)
+            table.insert(keysToTry, size .. "Normal") -- e.g., 25Normal
+        end
+    end
+
+    -- General keys (for dungeons or non-sized difficulties in zone_items.lua)
+    if isHeroic then
+        table.insert(keysToTry, "Heroic")
+    else
+        table.insert(keysToTry, "Normal")
+    end
+    
+    -- Add the direct difficulty string as a last resort (e.g. "heroic")
+    -- table.insert(keysToTry, difficulty) 
+
+    return keysToTry
+end
+
 -- Function to filter items based on instance difficulty
 function SLG:FilterItemsByDifficulty(items)
     local difficulty, instanceType = self:GetInstanceInfo()
@@ -1022,26 +1053,27 @@ function SLG:FilterItemsByDifficulty(items)
             end
         end
         
-        -- Handle ICC-style difficulty structure
-        if type(sourceItems) == "table" and (sourceItems["Normal"] or sourceItems["Heroic"] or sourceItems["Normal (25)"] or sourceItems["Heroic (25)"]) then
-            local diffKey
-            if instanceType:match("raid%d+") then
-                local size = instanceType:match("%d+")
-                if difficulty == "heroic" then
-                    diffKey = "Heroic (" .. size .. ")"
-                else
-                    diffKey = "Normal (" .. size .. ")"
+        -- Handle new-style difficulty structure (like ICC or custom boss difficulties)
+        if type(sourceItems) == "table" and next(sourceItems) ~= nil then
+            local itemsForCurrentDifficulty = nil
+            local matchedDiffKey = nil
+            local potentialKeys = self:GetZoneItemDifficultyKeys(difficulty, instanceType, raidInfo)
+
+            for _, key in ipairs(potentialKeys) do
+                if sourceItems[key] and type(sourceItems[key]) == "table" then
+                    itemsForCurrentDifficulty = sourceItems[key]
+                    matchedDiffKey = key
+                    break
                 end
-            else
-                diffKey = difficulty:gsub("^%l", string.upper)
             end
             
-            if sourceItems[diffKey] then
-                for _, itemId in ipairs(sourceItems[diffKey]) do
+            if itemsForCurrentDifficulty then
+                for _, itemId in ipairs(itemsForCurrentDifficulty) do
                     local itemData = self:GetItemData(itemId)
                     if itemData then
                         if self:CanUseItem(itemData.itemType) then
                             stats.total = stats.total + 1
+                            local displaySourceText = sourceName .. " (" .. matchedDiffKey .. ")"
                             if SLGSettings.displayMode == "attuned" then
                                 if SCL.IsAttuned(itemId) then
                                     stats.attuned = stats.attuned + 1
@@ -1049,7 +1081,7 @@ function SLG:FilterItemsByDifficulty(items)
                                         id = itemId,
                                         name = itemData.name,
                                         itemType = itemData.itemType,
-                                        source = sourceName .. " (" .. diffKey .. ")"
+                                        source = displaySourceText
                                     })
                                 end
                             elseif SLGSettings.displayMode == "not_attuned" then
@@ -1060,25 +1092,24 @@ function SLG:FilterItemsByDifficulty(items)
                                         id = itemId,
                                         name = itemData.name,
                                         itemType = itemData.itemType,
-                                        source = sourceName .. " (" .. diffKey .. ")"
+                                        source = displaySourceText
                                     })
                                 end
                             elseif SLGSettings.displayMode == "eligible" then
-                                if self:CanUseItem(itemData.itemType) then
-                                    stats.attuned = stats.attuned + 1
-                                    table.insert(filteredSourceItems, {
-                                        id = itemId,
-                                        name = itemData.name,
-                                        itemType = itemData.itemType,
-                                        source = sourceName .. " (" .. diffKey .. ")"
-                                    })
-                                end
+                                -- For eligible, we consider it "attuned" for counting purposes if they can use it
+                                stats.attuned = stats.attuned + 1 
+                                table.insert(filteredSourceItems, {
+                                    id = itemId,
+                                    name = itemData.name,
+                                    itemType = itemData.itemType,
+                                    source = displaySourceText
+                                })
                             elseif SLGSettings.displayMode == "all" then
                                 table.insert(filteredSourceItems, {
                                     id = itemId,
                                     name = itemData.name,
                                     itemType = itemData.itemType,
-                                    source = sourceName .. " (" .. diffKey .. ")"
+                                    source = displaySourceText
                                 })
                             end
                         end
