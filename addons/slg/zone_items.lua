@@ -115,10 +115,7 @@ SLG.ZoneItems = {
     ["Warder Stilgiss & Verek"] = { 0, 11784, 11782, 11783, 22241, 0, 22242, 11755 },
     ["Watchman Doomgrip"] = { 11926, 11920, 11929, 11923, 22256, 22205, 22254, 12550, 22255, 12552, 12547, 12527, 12528 },
 },
-  ["Blackrock Mountain Entrance"] = {
-    ["Blackrock Mountain"] = { 0, 18987, 0, 11603, 0, 14486 },
-},
-  ["Blackrock Spire Lower"] = {
+  ["Lower Blackrock Spire"] = {
     ["Bannok Grimaxe (Rare)"] = { 12637, 12634, 12621, 12838 },
     ["Burning Felguard (Rare, Random)"] = { 13181, 13182 },
     ["Crystal Fang (Rare)"] = { 13184, 13185, 13218 },
@@ -138,7 +135,7 @@ SLG.ZoneItems = {
     ["Urok Doomhowl (Summon)"] = { 22232, 13259, 13178, 13258, 18784, 12712 },
     ["War Master Voone"] = { 28972, 13179, 22231, 12582, 13177, 16676, 12335 },
 },
-  ["Blackrock Spire Upper"] = {
+  ["Upper Blackrock Spire"] = {
     ["Father Flame"] = { 13371 },
     ["General Drakkisath"] = { 13142, 12602, 13098, 22269, 22268, 22267, 22253, 13141, 12592, 15730, 13519, 16663, 16674, 16730, 16690, 16700, 16726, 16688, 16721, 16666, 16706 },
     ["Goraluk Anvilcrack"] = { 18047, 13502, 13498, 18048, 12834, 12728, 12837, 18779 },
