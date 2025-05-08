@@ -9,41 +9,57 @@ SLG.addon = addon
 SLG.itemFrames = {}
 SLG.lootedItems = {} -- Track items that have been looted but not attuned
 
--- Local attunement system using native WoW API
-local function IsAttuned(itemId)
+-- Get SCL library
+local SCL = LibStub and LibStub('SynastriaCoreLib-1.0', true)
+if not SCL then
+    print("|cFFFF0000SLG Error:|r SynastriaCoreLib not found!")
+else
+    print("|cFF00FF00SLG:|r SynastriaCoreLib loaded successfully.")
+end
+
+-- Helper function to check if player can use armor type
+local function CanUseArmorType(itemId)
     if not itemId then return false end
-    local itemLink = select(2, GetItemInfo(itemId))
-    if not itemLink then return false end
     
-    -- Check if item can be attuned and if it's already at 100%
-    if CanAttuneItemHelper and GetItemLinkAttuneProgress then
-        local canAttune = CanAttuneItemHelper(itemId)
-        if canAttune >= 1 then
-            local progress = GetItemLinkAttuneProgress(itemLink)
-            return progress >= 100
+    local _, _, _, _, itemMinLevel, _, _, _, itemEquipLoc, _, _, itemClassID, itemSubClassID = GetItemInfo(itemId)
+    if not itemClassID then return false end
+    
+    -- If it's not armor, no special rules needed
+    if itemClassID ~= 4 then return true end
+    
+    -- Get player's class
+    local _, playerClass = UnitClass("player")
+    
+    -- Armor SubClass IDs:
+    -- 1: Cloth
+    -- 2: Leather
+    -- 3: Mail
+    -- 4: Plate
+    
+    -- If item is below level 40, apply special rules
+    if itemMinLevel and itemMinLevel < 40 then
+        if playerClass == "WARRIOR" or playerClass == "PALADIN" or playerClass == "DEATHKNIGHT" then
+            -- Plate wearers can use Mail under 40
+            return itemSubClassID <= 4 -- Can use Cloth, Leather, Mail, Plate
+        elseif playerClass == "HUNTER" or playerClass == "SHAMAN" then
+            -- Mail wearers can use Leather under 40
+            return itemSubClassID <= 3 -- Can use Cloth, Leather, Mail
         end
     end
-    return false
-end
-
-local function GetAttuneProgress(itemId)
-    if not itemId then return 0 end
-    local itemLink = select(2, GetItemInfo(itemId))
-    if not itemLink then return 0 end
     
-    -- Get attunement progress if available
-    if GetItemLinkAttuneProgress then
-        return GetItemLinkAttuneProgress(itemLink) or 0
+    -- Normal armor type restrictions
+    if playerClass == "WARRIOR" or playerClass == "PALADIN" or playerClass == "DEATHKNIGHT" then
+        return itemSubClassID <= 4 -- Can use Cloth, Leather, Mail, Plate
+    elseif playerClass == "HUNTER" or playerClass == "SHAMAN" then
+        return itemSubClassID <= 3 -- Can use Cloth, Leather, Mail
+    elseif playerClass == "DRUID" or playerClass == "ROGUE" then
+        return itemSubClassID <= 2 -- Can use Cloth, Leather
+    else
+        return itemSubClassID == 1 -- Can only use Cloth
     end
-    return 0
 end
 
--- Replace all SCL.IsAttuned calls with our local IsAttuned function
-local SCL = {
-    IsAttuned = IsAttuned,
-    GetAttuneProgress = GetAttuneProgress
-}
-
+-- Using SynastriaCoreLib for attunement checking
 -- WotLK Raid Configuration
 SLG.RaidInfo = {
     ["Icecrown Citadel"] = {
@@ -410,7 +426,17 @@ end
 function SLG:UpdateItemStatus(itemID)
     for _, frame in pairs(self.itemFrames) do
         if frame.itemID == itemID then
-            if SCL.IsAttuned(itemID) then
+            local isAttuned = SCL.IsAttuned(itemID)
+            print("Debug - UpdateItemStatus:")
+            print("  ItemID:", itemID)
+            print("  IsAttuned:", isAttuned)
+            print("  SCL loaded:", SCL ~= nil)
+            if SCL then
+                print("  SCL.isLoaded:", SCL.isLoaded())
+                print("  AttuneProgress:", SCL.GetAttuneProgress(itemID))
+            end
+            
+            if isAttuned then
                 -- Item is now attuned, remove it from display
                 frame:Hide()
                 self.lootedItems[itemID] = nil
@@ -609,6 +635,12 @@ function SLG:UpdateItemList()
     zoneText:SetText(currentZone .. self:GetDifficultyText())
     progressText:SetText(string.format("%d/%d", stats.attuned, stats.total))
     
+    -- Debug print
+    print("Debug - UpdateItemList:")
+    print("  Zone:", currentZone)
+    print("  Stats:", stats.attuned, "/", stats.total)
+    print("  Source Groups:", sourceGroups and #sourceGroups or 0)
+    
     -- If all items are attuned, show a message
     if stats.total > 0 and stats.attuned == stats.total then
         local messageFrame = self:GetItemFrame()
@@ -639,7 +671,7 @@ function SLG:UpdateItemList()
         messageFrame:SetHeight(40)
         
         local noItemsText = "No attunable items found in this zone"
-        local difficulty, instanceType = self:GetInstanceInfo()
+        local difficulty, instanceType = self:GetInstanceInfo(true) -- Add debug flag here
         if instanceType == "dungeon" then
             noItemsText = string.format("No attunable items found for %s mode", difficulty)
         elseif instanceType == "raid" then
@@ -726,8 +758,8 @@ function SLG:UpdateItemList()
                 if self:IsItemEquipped(item.id) then
                     local itemLink = self:GetEquippedItemLink(item.id)
                     local pct = 0
-                    if itemLink and GetItemLinkAttuneProgress then
-                        pct = tonumber(GetItemLinkAttuneProgress(itemLink)) or 0
+                    if itemLink and SCL.GetAttuneProgress then
+                        pct = tonumber(SCL.GetAttuneProgress(itemLink)) or 0
                     end
                     itemFrame.nameText:SetTextColor(0.2, 0.6, 1) -- Blue
                     itemFrame.statusText:SetText(string.format("Attuning: %d%%", pct))
@@ -735,8 +767,8 @@ function SLG:UpdateItemList()
                 elseif self:IsItemInInventory(item.id) then
                     local itemLink = self:GetInventoryItemLink(item.id)
                     local pct = 0
-                    if itemLink and GetItemLinkAttuneProgress then
-                        pct = tonumber(GetItemLinkAttuneProgress(itemLink)) or 0
+                    if itemLink and SCL.GetAttuneProgress then
+                        pct = tonumber(SCL.GetAttuneProgress(itemLink)) or 0
                     end
                     itemFrame.nameText:SetTextColor(0, 1, 0) -- Green
                     itemFrame.statusText:SetText(string.format("Looted! (%d%%)", pct))
@@ -791,7 +823,7 @@ function SLG:UpdateItemList()
 end
 
 -- Function to get instance difficulty info
-function SLG:GetInstanceInfo()
+function SLG:GetInstanceInfo(showDebug)
     local inInstance, instanceType = IsInInstance()
     if not inInstance then
         return "normal", "outdoor" -- Not in an instance
@@ -801,16 +833,35 @@ function SLG:GetInstanceInfo()
     local currentZone = GetRealZoneText()
     local raidInfo = self.RaidInfo[currentZone]
 
-    -- Custom server mapping:
-    -- 1: 10 Normal
-    -- 2: 25 Normal
-    -- 3: 10 Heroic
-    -- 4: 25 Heroic
+    -- Check for Mythic Dungeon buff
+    local hasMythicBuff = false
+    for i = 1, 40 do
+        local name = UnitBuff("player", i)
+        if name and name:find("Mythic") then
+            hasMythicBuff = true
+            break
+        end
+    end
+
+    -- Only print debug info if explicitly requested
+    if showDebug then
+        print("Debug - Instance Info:")
+        print("  Zone:", currentZone)
+        print("  Type:", instanceType)
+        print("  Difficulty ID:", difficultyID)
+        print("  Has Mythic Buff:", hasMythicBuff)
+    end
 
     if instanceType == "party" then
-        if difficultyID == 2 then
+        -- For dungeons, check for mythic buff first
+        if hasMythicBuff or difficultyID == 23 then -- 23 is the difficulty ID for mythic dungeons
+            if showDebug then print("  Detected as: mythic dungeon") end
+            return "mythic", "dungeon"
+        elseif difficultyID == 2 then
+            if showDebug then print("  Detected as: heroic dungeon") end
             return "heroic", "dungeon"
         else
+            if showDebug then print("  Detected as: normal dungeon") end
             return "normal", "dungeon"
         end
     elseif instanceType == "raid" then
@@ -1029,35 +1080,86 @@ function SLG:GetZoneItemDifficultyKeys(difficulty, instanceType, raidInfo)
     local keysToTry = {}
     local size = instanceType:match("raid(%d+)") or instanceType:match("dungeon(%d+)") -- Match raid or dungeon size
     local isHeroic = difficulty == "heroic"
+    local isMythic = difficulty == "mythic"
 
-    if size then -- For sized instances (10/25 man raids, or future sized dungeons)
+    -- For dungeons, we want to be very specific about which difficulty we show
+    if instanceType == "dungeon" then
+        if isMythic then
+            table.insert(keysToTry, "Mythic")
+            table.insert(keysToTry, "(Mythic)")
+        elseif isHeroic then
+            table.insert(keysToTry, "Heroic")
+            table.insert(keysToTry, "(Heroic)")
+        else
+            -- For normal dungeons, only show normal items
+            table.insert(keysToTry, "Normal")
+            -- Also include items with no difficulty specified
+            table.insert(keysToTry, "")
+        end
+        return keysToTry
+    end
+
+    -- For raids with sizes
+    if size then
         if isHeroic then
             table.insert(keysToTry, size .. "ManHeroic") -- e.g., 25ManHeroic
             table.insert(keysToTry, "Heroic (" .. size .. ")") -- e.g, Heroic (25)
-            table.insert(keysToTry, size .. "Heroic") -- e.g., 25Heroic (less common but possible)
+            table.insert(keysToTry, size .. "Heroic") -- e.g., 25Heroic
         else
             table.insert(keysToTry, size .. "Man") -- e.g., 25Man
             table.insert(keysToTry, "Normal (" .. size .. ")") -- e.g, Normal (25)
             table.insert(keysToTry, size .. "Normal") -- e.g., 25Normal
+            -- Also include items with no difficulty specified
+            table.insert(keysToTry, "")
+        end
+    else
+        -- For non-sized instances
+        if isHeroic then
+            table.insert(keysToTry, "Heroic")
+            table.insert(keysToTry, "(Heroic)")
+        else
+            table.insert(keysToTry, "Normal")
+            table.insert(keysToTry, "")
         end
     end
-
-    -- General keys (for dungeons or non-sized difficulties in zone_items.lua)
-    if isHeroic then
-        table.insert(keysToTry, "Heroic")
-    else
-        table.insert(keysToTry, "Normal")
-    end
-    
-    -- Add the direct difficulty string as a last resort (e.g. "heroic")
-    -- table.insert(keysToTry, difficulty) 
 
     return keysToTry
 end
 
+-- Helper function to check if a source name matches the current difficulty
+function SLG:SourceMatchesDifficulty(sourceName, difficulty)
+    -- Extract the difficulty from the source name
+    local sourceDifficulty = nil
+    
+    -- Debug print
+    print("Debug - Source Difficulty Check:")
+    print("  Source:", sourceName)
+    
+    -- Convert difficulty to lowercase for case-insensitive comparison
+    difficulty = difficulty:lower()
+    sourceName = sourceName:lower()
+    
+    -- Check for various difficulty formats in parentheses
+    if sourceName:find("%(mythic%)") or sourceName:find("mythic") then
+        sourceDifficulty = "mythic"
+    elseif sourceName:find("%(heroic%)") or sourceName:find("heroic") then
+        sourceDifficulty = "heroic"
+    else
+        -- If no difficulty specified in source name, it's a normal mode item
+        sourceDifficulty = "normal"
+    end
+    
+    print("  Source Difficulty:", sourceDifficulty)
+    print("  Current Difficulty:", difficulty)
+    print("  Match:", sourceDifficulty == difficulty)
+    
+    -- Return true only if difficulties match
+    return sourceDifficulty == difficulty
+end
+
 -- Function to filter items based on instance difficulty
 function SLG:FilterItemsByDifficulty(items)
-    local difficulty, instanceType = self:GetInstanceInfo()
+    local difficulty, instanceType = self:GetInstanceInfo(true) -- Always show debug info when filtering items
     local currentZone = GetRealZoneText()
     local raidInfo = self.RaidInfo[currentZone]
     local filteredItems = {}
@@ -1071,161 +1173,70 @@ function SLG:FilterItemsByDifficulty(items)
         return items, stats
     end
     
+    -- Debug print
+    print("Debug - Filtering Items:")
+    print("  Zone:", currentZone)
+    print("  Difficulty:", difficulty)
+    print("  Instance Type:", instanceType)
+    
     for sourceName, sourceItems in pairs(items) do
-        local filteredSourceItems = {}
-        local hardModes = nil
-        
-        -- Check for Ulduar hard modes
-        if raidInfo and raidInfo.hardModes then
-            for bossName, _ in pairs(raidInfo.hardModes) do
-                if sourceName:find(bossName) then
-                    hardModes = self:GetRaidHardModeInfo(bossName)
-                    break
-                end
-            end
-        end
-        
-        -- Handle new-style difficulty structure (like ICC or custom boss difficulties)
-        if type(sourceItems) == "table" and next(sourceItems) ~= nil then
-            local itemsForCurrentDifficulty = nil
-            local matchedDiffKey = nil
-            local potentialKeys = self:GetZoneItemDifficultyKeys(difficulty, instanceType, raidInfo)
-
-            for _, key in ipairs(potentialKeys) do
-                if sourceItems[key] and type(sourceItems[key]) == "table" then
-                    itemsForCurrentDifficulty = sourceItems[key]
-                    matchedDiffKey = key
-                    break
+        -- Only process this source if it matches our current difficulty
+        if self:SourceMatchesDifficulty(sourceName, difficulty) then
+            local filteredSourceItems = {}
+            local hardModes = nil
+            
+            -- Check for Ulduar hard modes
+            if raidInfo and raidInfo.hardModes then
+                for bossName, _ in pairs(raidInfo.hardModes) do
+                    if sourceName:find(bossName) then
+                        hardModes = self:GetRaidHardModeInfo(bossName)
+                        break
+                    end
                 end
             end
             
-            if itemsForCurrentDifficulty then
-                for _, itemId in ipairs(itemsForCurrentDifficulty) do
+            -- Process items for this source
+            if type(sourceItems) == "table" then
+                for _, itemId in ipairs(sourceItems) do
                     local itemData = self:GetItemData(itemId)
                     if itemData then
                         if self:CanUseItem(itemData.itemType) then
                             stats.total = stats.total + 1
-                            local displaySourceText = sourceName .. " (" .. matchedDiffKey .. ")"
-                            if SLGSettings.displayMode == "attuned" then
-                                if SCL.IsAttuned(itemId) then
-                                    stats.attuned = stats.attuned + 1
-                                    table.insert(filteredSourceItems, {
-                                        id = itemId,
-                                        name = itemData.name,
-                                        itemType = itemData.itemType,
-                                        source = displaySourceText
-                                    })
-                                end
-                            elseif SLGSettings.displayMode == "not_attuned" then
-                                if SCL.IsAttuned(itemId) then
-                                    stats.attuned = stats.attuned + 1
-                                else
-                                    table.insert(filteredSourceItems, {
-                                        id = itemId,
-                                        name = itemData.name,
-                                        itemType = itemData.itemType,
-                                        source = displaySourceText
-                                    })
-                                end
-                            elseif SLGSettings.displayMode == "eligible" then
-                                -- For eligible, we consider it "attuned" for counting purposes if they can use it
-                                stats.attuned = stats.attuned + 1 
+                            if difficulty == "mythic" then
+                                stats.attuned = stats.attuned + 1
                                 table.insert(filteredSourceItems, {
                                     id = itemId,
                                     name = itemData.name,
                                     itemType = itemData.itemType,
-                                    source = displaySourceText
-                                })
-                            elseif SLGSettings.displayMode == "all" then
+                                    source = sourceName .. " (" .. difficulty .. ")" })
+                            elseif difficulty == "heroic" then
+                                stats.attuned = stats.attuned + 1
                                 table.insert(filteredSourceItems, {
                                     id = itemId,
                                     name = itemData.name,
                                     itemType = itemData.itemType,
-                                    source = displaySourceText
-                                })
-                            end
-                        end
-                    end
-                end
-            end
-        else
-            -- Handle old-style difficulty in source name
-            for _, item in ipairs(sourceItems) do
-                -- Verify and update item data
-                item = self:VerifyItemData(item)
-                
-                local isHeroic = string.find(item.source, "(Heroic)") ~= nil
-                local shouldInclude = false
-                
-                if instanceType == "dungeon" then
-                    if difficulty == "heroic" and isHeroic then
-                        shouldInclude = true
-                    elseif difficulty == "normal" and not isHeroic then
-                        shouldInclude = true
-                    end
-                elseif instanceType:match("raid%d+") then
-                    if raidInfo then
-                        local size = instanceType:match("%d+")
-                        local sourceSize = item.source:match("(%d+)")
-                        
-                        -- Check if the item matches the current raid size
-                        if sourceSize and sourceSize == size then
-                            -- For raids with heroic mode
-                            if raidInfo.hasHeroic then
-                                if (difficulty == "heroic" and isHeroic) or
-                                   (difficulty == "normal" and not isHeroic) then
-                                    shouldInclude = true
-                                end
+                                    source = sourceName .. " (" .. difficulty .. ")" })
                             else
-                                shouldInclude = true
-                                
-                                -- Special handling for Ulduar hard modes
-                                if hardModes then
-                                    -- TODO: Implement hard mode detection logic
-                                    -- For now, show all items
-                                    shouldInclude = true
+                                stats.total = stats.total + 1
+                                if itemData.itemType == "Cloth" or itemData.itemType == "Leather" or itemData.itemType == "Mail" or itemData.itemType == "Plate" then
+                                    stats.attuned = stats.attuned + 1
                                 end
-                            end
-                        end
-                    else
-                        shouldInclude = true
-                    end
-                else
-                    shouldInclude = true
-                end
-                
-                if shouldInclude then
-                    if self:CanUseItem(item.itemType) then
-                        stats.total = stats.total + 1
-                        if SLGSettings.displayMode == "attuned" then
-                            if SCL.IsAttuned(item.id) then
-                                stats.attuned = stats.attuned + 1
                                 table.insert(filteredSourceItems, {
-                                    id = item.id,
-                                    name = item.name,
-                                    itemType = item.itemType,
-                                    source = item.source
-                                })
+                                    id = itemId,
+                                    name = itemData.name,
+                                    itemType = itemData.itemType,
+                                    source = sourceName .. " (" .. difficulty .. ")" })
                             end
-                        elseif SLGSettings.displayMode == "not_attuned" then
-                            if SCL.IsAttuned(item.id) then
-                                stats.attuned = stats.attuned + 1
-                            else
-                                table.insert(filteredSourceItems, item)
-                            end
-                        elseif SLGSettings.displayMode == "eligible" then
-                            stats.attuned = stats.attuned + 1
-                            table.insert(filteredSourceItems, item)
-                        elseif SLGSettings.displayMode == "all" then
-                            table.insert(filteredSourceItems, item)
                         end
                     end
                 end
+                if #filteredSourceItems > 0 then
+                    table.insert(filteredItems, {
+                        source = sourceName .. " (" .. difficulty .. ")",
+                        items = filteredSourceItems
+                    })
+                end
             end
-        end
-        
-        if #filteredSourceItems > 0 then
-            filteredItems[sourceName] = filteredSourceItems
         end
     end
     
@@ -1239,7 +1250,13 @@ function SLG:GetDifficultyText()
     local raidInfo = self.RaidInfo[currentZone]
     
     if instanceType == "dungeon" then
-        return difficulty == "heroic" and " (Heroic)" or " (Normal)"
+        if difficulty == "mythic" then
+            return " (Mythic)"
+        elseif difficulty == "heroic" then
+            return " (Heroic)"
+        else
+            return " (Normal)"
+        end
     elseif instanceType:match("raid%d+") then
         if raidInfo then
             local size = instanceType:match("%d+")
@@ -1311,7 +1328,7 @@ function SLG:GetZoneItems(zoneName)
     
     local sourceGroups = {}
     -- Determine current difficulty key
-    local difficulty, instanceType = self:GetInstanceInfo()
+    local difficulty, instanceType = self:GetInstanceInfo(true) -- Always show debug info when getting zone items
     local diffKey = nil
     if instanceType:match("raid%d+") then
         local size = instanceType:match("%d+")
@@ -1391,27 +1408,62 @@ function SLG:GetZoneItems(zoneName)
             else
                 -- Flat list (dungeon style)
                 local sourceItems = {}
-                for _, itemId in ipairs(itemIds) do
-                    local itemData = self:GetItemData(itemId)
-                    if itemData then
-                        local isAttuned = SCL.IsAttuned(itemId)
-                        local canUse = self:CanUseItem(itemData.itemType)
+                -- Check if the source name contains the difficulty
+                local sourceDiff = sourceName:match("%(([^%)]+)%)")
+                if sourceDiff then
+                    -- Only process items if the source difficulty matches current difficulty
+                    if sourceDiff == diffKey then
+                        for _, itemId in ipairs(itemIds) do
+                            local itemData = self:GetItemData(itemId)
+                            if itemData then
+                                local isAttuned = SCL.IsAttuned(itemId)
+                                local canUse = self:CanUseItem(itemData.itemType)
 
-                        if showAll then
-                            stats.total = stats.total + 1
-                            if isAttuned then stats.attuned = stats.attuned + 1 end
-                            table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, source = sourceName .. " (" .. diffKey .. ")" })
-                        elseif showEligible and canUse then
-                            stats.total = stats.total + 1
-                            if isAttuned then stats.attuned = stats.attuned + 1 end
-                            table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, source = sourceName .. " (" .. diffKey .. ")" })
-                        elseif showAttuned and canUse and isAttuned then
-                            stats.total = stats.total + 1
-                            stats.attuned = stats.attuned + 1
-                            table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, source = sourceName .. " (" .. diffKey .. ")" })
-                        elseif showNotAttuned and canUse and not isAttuned then
-                            stats.total = stats.total + 1
-                            table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, source = sourceName .. " (" .. diffKey .. ")" })
+                                if showAll then
+                                    stats.total = stats.total + 1
+                                    if isAttuned then stats.attuned = stats.attuned + 1 end
+                                    table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, source = sourceName })
+                                elseif showEligible and canUse then
+                                    stats.total = stats.total + 1
+                                    if isAttuned then stats.attuned = stats.attuned + 1 end
+                                    table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, source = sourceName })
+                                elseif showAttuned and canUse and isAttuned then
+                                    stats.total = stats.total + 1
+                                    stats.attuned = stats.attuned + 1
+                                    table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, source = sourceName })
+                                elseif showNotAttuned and canUse and not isAttuned then
+                                    stats.total = stats.total + 1
+                                    table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, source = sourceName })
+                                end
+                            end
+                        end
+                    end
+                else
+                    -- If no difficulty specified in source name, it's a normal mode item
+                    if diffKey == "Normal" then
+                        for _, itemId in ipairs(itemIds) do
+                            local itemData = self:GetItemData(itemId)
+                            if itemData then
+                                local isAttuned = SCL.IsAttuned(itemId)
+                                local canUse = self:CanUseItem(itemData.itemType)
+
+                                if showAll then
+                                    stats.total = stats.total + 1
+                                    if isAttuned then stats.attuned = stats.attuned + 1 end
+                                    table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, source = sourceName })
+                                elseif showEligible and canUse then
+                                    stats.total = stats.total + 1
+                                    if isAttuned then stats.attuned = stats.attuned + 1 end
+                                    table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, source = sourceName })
+                                elseif showAttuned and canUse and isAttuned then
+                                    stats.total = stats.total + 1
+                                    stats.attuned = stats.attuned + 1
+                                    table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, source = sourceName })
+                                elseif showNotAttuned and canUse and not isAttuned then
+                                    stats.total = stats.total + 1
+                                    table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, source = sourceName })
+                                end
+                            end
                         end
                     end
                 end
@@ -1522,13 +1574,6 @@ function SLG:GetInventoryItemLink(itemId)
         end
     end
     return nil
-end
-
--- Stub for attunement progress (replace with real SCL function if available)
-if not SCL.GetAttuneProgress then
-    function SCL.GetAttuneProgress(itemId)
-        return 0 -- Always 0% unless implemented
-    end
 end
 
 function SLG:ExportCollectorData()
