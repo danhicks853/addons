@@ -427,15 +427,6 @@ function SLG:UpdateItemStatus(itemID)
     for _, frame in pairs(self.itemFrames) do
         if frame.itemID == itemID then
             local isAttuned = SCL.IsAttuned(itemID)
-            print("Debug - UpdateItemStatus:")
-            print("  ItemID:", itemID)
-            print("  IsAttuned:", isAttuned)
-            print("  SCL loaded:", SCL ~= nil)
-            if SCL then
-                print("  SCL.isLoaded:", SCL.isLoaded())
-                print("  AttuneProgress:", SCL.GetAttuneProgress(itemID))
-            end
-            
             if isAttuned then
                 -- Item is now attuned, remove it from display
                 frame:Hide()
@@ -634,12 +625,6 @@ function SLG:UpdateItemList()
     -- Update zone and progress text
     zoneText:SetText(currentZone .. self:GetDifficultyText())
     progressText:SetText(string.format("%d/%d", stats.attuned, stats.total))
-    
-    -- Debug print
-    print("Debug - UpdateItemList:")
-    print("  Zone:", currentZone)
-    print("  Stats:", stats.attuned, "/", stats.total)
-    print("  Source Groups:", sourceGroups and #sourceGroups or 0)
     
     -- If all items are attuned, show a message
     if stats.total > 0 and stats.attuned == stats.total then
@@ -843,25 +828,13 @@ function SLG:GetInstanceInfo(showDebug)
         end
     end
 
-    -- Only print debug info if explicitly requested
-    if showDebug then
-        print("Debug - Instance Info:")
-        print("  Zone:", currentZone)
-        print("  Type:", instanceType)
-        print("  Difficulty ID:", difficultyID)
-        print("  Has Mythic Buff:", hasMythicBuff)
-    end
-
     if instanceType == "party" then
         -- For dungeons, check for mythic buff first
         if hasMythicBuff or difficultyID == 23 then -- 23 is the difficulty ID for mythic dungeons
-            if showDebug then print("  Detected as: mythic dungeon") end
             return "mythic", "dungeon"
         elseif difficultyID == 2 then
-            if showDebug then print("  Detected as: heroic dungeon") end
             return "heroic", "dungeon"
         else
-            if showDebug then print("  Detected as: normal dungeon") end
             return "normal", "dungeon"
         end
     elseif instanceType == "raid" then
@@ -1129,32 +1102,24 @@ end
 -- Helper function to check if a source name matches the current difficulty
 function SLG:SourceMatchesDifficulty(sourceName, difficulty)
     -- Extract the difficulty from the source name
-    local sourceDifficulty = nil
-    
-    -- Debug print
-    print("Debug - Source Difficulty Check:")
-    print("  Source:", sourceName)
+    local sourceDiff = sourceName:match("%(([^%)]+)%)")
     
     -- Convert difficulty to lowercase for case-insensitive comparison
     difficulty = difficulty:lower()
     sourceName = sourceName:lower()
     
-    -- Check for various difficulty formats in parentheses
+    -- Check for various difficulty formats
     if sourceName:find("%(mythic%)") or sourceName:find("mythic") then
-        sourceDifficulty = "mythic"
-    elseif sourceName:find("%(heroic%)") or sourceName:find("heroic") then
-        sourceDifficulty = "heroic"
+        return true
+    elseif sourceName:find("%(25manheroic%)") or sourceName:find("25manheroic") or 
+           sourceName:find("%(heroic%)") or sourceName:find("heroic") then
+        return difficulty == "heroic"
+    elseif sourceName:find("%(25man%)") or sourceName:find("25man") then
+        return difficulty == "normal" -- 25-man normal
     else
         -- If no difficulty specified in source name, it's a normal mode item
-        sourceDifficulty = "normal"
+        return difficulty == "normal"
     end
-    
-    print("  Source Difficulty:", sourceDifficulty)
-    print("  Current Difficulty:", difficulty)
-    print("  Match:", sourceDifficulty == difficulty)
-    
-    -- Return true only if difficulties match
-    return sourceDifficulty == difficulty
 end
 
 -- Function to filter items based on instance difficulty
@@ -1172,12 +1137,6 @@ function SLG:FilterItemsByDifficulty(items)
     if instanceType == "outdoor" then
         return items, stats
     end
-    
-    -- Debug print
-    print("Debug - Filtering Items:")
-    print("  Zone:", currentZone)
-    print("  Difficulty:", difficulty)
-    print("  Instance Type:", instanceType)
     
     for sourceName, sourceItems in pairs(items) do
         -- Only process this source if it matches our current difficulty
@@ -1328,7 +1287,7 @@ function SLG:GetZoneItems(zoneName)
     
     local sourceGroups = {}
     -- Determine current difficulty key
-    local difficulty, instanceType = self:GetInstanceInfo(true) -- Always show debug info when getting zone items
+    local difficulty, instanceType = self:GetInstanceInfo(true)
     local diffKey = nil
     if instanceType:match("raid%d+") then
         local size = instanceType:match("%d+")
@@ -1341,11 +1300,16 @@ function SLG:GetZoneItems(zoneName)
         diffKey = difficulty:gsub("^%l", string.upper)
     end
     
+    -- Get player's faction
+    local playerFaction = UnitFactionGroup("player")
+    local factionSuffix = playerFaction == "Alliance" and "_A" or "_H"
+    
     -- Use __order if present for boss ordering
     local bossKeys = zoneData.__order or {}
     local ordered = #bossKeys > 0
 
     local mode = SLGSettings.displayMode or "not_attuned"
+    
     local showAll = mode == "all"
     local showEligible = mode == "eligible"
     local showAttuned = mode == "attuned"
@@ -1367,52 +1331,51 @@ function SLG:GetZoneItems(zoneName)
     for sourceName, itemIds in boss_iter() do
         -- Skip __order key
         if sourceName ~= "__order" then
-            -- If itemIds is a table of difficulties (e.g., ICC/Ulduar style)
-            if type(itemIds) == "table" and (itemIds["Normal"] or itemIds["Normal (25)"] or itemIds["Heroic"] or itemIds["Heroic (25)"]) then
-                local keys = {}
-                for k, _ in pairs(itemIds) do table.insert(keys, k) end
-                -- Only process the sub-table matching diffKey
-                if itemIds[diffKey] then
-                    local sourceItems = {}
-                    for _, itemId in ipairs(itemIds[diffKey]) do
-                        local itemData = self:GetItemData(itemId)
-                        if itemData then
-                            local isAttuned = SCL.IsAttuned(itemId)
-                            local canUse = self:CanUseItem(itemData.itemType)
+            -- Check if the source name contains difficulty information
+            local sourceDiff = sourceName:match("%(([^%)]+)%)")
+            local sourceItems = {}
+            
+            -- For non-instance zones (like Dalaran), show items based on display mode
+            if instanceType == "outdoor" then
+                for _, itemId in ipairs(itemIds) do
+                    local itemData = self:GetItemData(itemId)
+                    if itemData then
+                        local isAttuned = SCL.IsAttuned(itemId)
+                        local canUse = self:CanUseItem(itemData.itemType)
 
-                            if showAll then
-                                stats.total = stats.total + 1
-                                if isAttuned then stats.attuned = stats.attuned + 1 end
-                                table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, source = sourceName .. " (" .. diffKey .. ")" })
-                            elseif showEligible and canUse then
-                                stats.total = stats.total + 1
-                                if isAttuned then stats.attuned = stats.attuned + 1 end
-                                table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, source = sourceName .. " (" .. diffKey .. ")" })
-                            elseif showAttuned and canUse and isAttuned then
-                                stats.total = stats.total + 1
-                                stats.attuned = stats.attuned + 1
-                                table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, source = sourceName .. " (" .. diffKey .. ")" })
-                            elseif showNotAttuned and canUse and not isAttuned then
-                                stats.total = stats.total + 1
-                                table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, source = sourceName .. " (" .. diffKey .. ")" })
-                            end
+                        -- Only add items that match the current display mode
+                        if showAll then
+                            stats.total = stats.total + 1
+                            if isAttuned then stats.attuned = stats.attuned + 1 end
+                            table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, source = sourceName })
+                        elseif showEligible and canUse then
+                            stats.total = stats.total + 1
+                            if isAttuned then stats.attuned = stats.attuned + 1 end
+                            table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, source = sourceName })
+                        elseif showAttuned and canUse and isAttuned then
+                            stats.total = stats.total + 1
+                            stats.attuned = stats.attuned + 1
+                            table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, source = sourceName })
+                        elseif showNotAttuned and canUse and not isAttuned then
+                            stats.total = stats.total + 1
+                            table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, source = sourceName })
                         end
-                    end
-                    if #sourceItems > 0 then
-                        table.insert(sourceGroups, {
-                            source = sourceName .. " (" .. diffKey .. ")",
-                            items = sourceItems
-                        })
                     end
                 end
             else
-                -- Flat list (dungeon style)
-                local sourceItems = {}
-                -- Check if the source name contains the difficulty
-                local sourceDiff = sourceName:match("%(([^%)]+)%)")
                 if sourceDiff then
+                    -- Convert source difficulty to match our format
+                    local sourceDifficulty = sourceDiff
+                    if sourceDiff:match("25ManHeroic") then
+                        sourceDifficulty = "Heroic (25)"
+                    elseif sourceDiff:match("25Man") then
+                        sourceDifficulty = "Normal (25)"
+                    elseif sourceDiff:match("Heroic") then
+                        sourceDifficulty = "Heroic (10)"
+                    end
+                    
                     -- Only process items if the source difficulty matches current difficulty
-                    if sourceDiff == diffKey then
+                    if sourceDifficulty == diffKey then
                         for _, itemId in ipairs(itemIds) do
                             local itemData = self:GetItemData(itemId)
                             if itemData then
@@ -1440,7 +1403,7 @@ function SLG:GetZoneItems(zoneName)
                     end
                 else
                     -- If no difficulty specified in source name, it's a normal mode item
-                    if diffKey == "Normal" then
+                    if diffKey == "Normal (10)" then
                         for _, itemId in ipairs(itemIds) do
                             local itemData = self:GetItemData(itemId)
                             if itemData then
@@ -1467,12 +1430,13 @@ function SLG:GetZoneItems(zoneName)
                         end
                     end
                 end
-                if #sourceItems > 0 then
-                    table.insert(sourceGroups, {
-                        source = sourceName,
-                        items = sourceItems
-                    })
-                end
+            end
+            
+            if #sourceItems > 0 then
+                table.insert(sourceGroups, {
+                    source = sourceName,
+                    items = sourceItems
+                })
             end
         end
     end
