@@ -55,6 +55,9 @@ Libs\SynastriaCoreLib-1.0\SynastriaCoreLib-1.0.xml
 core\constants.lua
 core\init.lua
 
+# Utils
+utils\helpers.lua
+
 # Data Files
 data\zone_items.lua
 
@@ -62,6 +65,7 @@ data\zone_items.lua
 ui\frames.lua
 ui\minimap_button.lua
 ui\main_window.lua
+ui\db_test_window.lua
 ui\zone_browser.lua
 ui\item_list.lua
 

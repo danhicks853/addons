@@ -7,6 +7,33 @@ local addon = LibStub("AceAddon-3.0"):NewAddon(addonName, "AceConsole-3.0")
 print("SLG Debug: Created AceAddon instance")
 SLG.addon = addon
 
+-- Slash command for loot DB test
+SLASH_SLGLOOTDB1 = "/slglootdb"
+SlashCmdList["SLGLOOTDB"] = function(msg)
+    local itemId = tonumber(msg and msg:match("%d+"))
+    if not itemId then
+        print("Usage: /slglootdb <itemId>")
+        return
+    end
+    local helpers = SLG.modules["Helpers"]
+    if helpers and helpers.TestLootDB then
+        helpers:TestLootDB(itemId)
+    else
+        print("Helpers module or TestLootDB not found.")
+    end
+end
+
+-- Slash command for DB Test Window
+SLASH_SLGDBTEST1 = "/slgdbtest"
+SlashCmdList["SLGDBTEST"] = function()
+    local dbtest = SLG.modules["DBTestWindow"]
+    if dbtest and dbtest.Toggle then
+        dbtest:Toggle()
+    else
+        print("DBTestWindow module not found.")
+    end
+end
+
 -- Core tables
 SLG.modules = {}
 SLG.frames = {}

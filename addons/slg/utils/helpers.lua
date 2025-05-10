@@ -116,5 +116,35 @@ function Helpers:Dump(o, depth)
     end
 end
 
+-- Dev/test: Print loot DB sources for a given itemId
+function Helpers:TestLootDB(itemId)
+    if not ItemLocIsLoaded or not ItemLocGetSourceCount or not ItemLocGetSourceAt then
+        DEFAULT_CHAT_FRAME:AddMessage("Loot DB API not available.")
+        return
+    end
+    local version = ItemLocIsLoaded()
+    if not version then
+        DEFAULT_CHAT_FRAME:AddMessage("Loot DB is not loaded.")
+        return
+    end
+    local count = ItemLocGetSourceCount(itemId)
+    if not count or count == 0 then
+        DEFAULT_CHAT_FRAME:AddMessage("No sources found for itemId " .. tostring(itemId))
+        return
+    end
+    DEFAULT_CHAT_FRAME:AddMessage("Loot sources for itemId " .. tostring(itemId) .. " (DB version: " .. tostring(version) .. "):")
+    for i = 1, count do
+        local srcType, objType, objId, chance, dropsPerThousand, objName, zoneName, spawnedCount = ItemLocGetSourceAt(itemId, i)
+        DEFAULT_CHAT_FRAME:AddMessage(string.format(
+            "[%d] srcType=%s, objType=%s, objId=%s, chance=%.2f%%, dropsPerThousand=%.1f, objName=%s, zoneName=%s, spawnedCount=%s",
+            i,
+            tostring(srcType), tostring(objType), tostring(objId),
+            tonumber(chance) and chance * 100 or 0,
+            tonumber(dropsPerThousand) or 0,
+            tostring(objName), tostring(zoneName), tostring(spawnedCount)
+        ))
+    end
+end
+
 -- Return the module
 return Helpers 
