@@ -1,6 +1,8 @@
 local _, NS = ...
 local MODULE_NAME, MODULE_VERSION = 'Attunement', 7
 
+print("[SCL:Attunement] Loaded top")
+
 NS.DebugLog(MODULE_NAME, MODULE_VERSION, 'Start')
 if not NS.loaded then return end
 MODULE_VERSION = NS.SYNASTRIACORELIB_MINOR * 100 + MODULE_VERSION
@@ -280,3 +282,5 @@ function SynastriaCoreLib.ItemHasBaseResist(itemId)
 end
 
 NS.DebugLog(MODULE_NAME, MODULE_VERSION, 'Done')
+
+print("[SCL:Attunement] Loaded bottom")

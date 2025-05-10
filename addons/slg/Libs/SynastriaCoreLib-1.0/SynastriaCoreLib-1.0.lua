@@ -491,3 +491,5 @@ function SynastriaCoreLib.LoadItem(itemIdOrLink, fnc)
 end
 
 NS.DebugLog(nil, nil, 'Done')
+
+_G["SynastriaCoreLib"] = SynastriaCoreLib
