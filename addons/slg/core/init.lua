@@ -1,10 +1,8 @@
 local addonName, SLG = ...
-print("SLG Debug: Starting initialization...")
 SLG.version = GetAddOnMetadata(addonName, "Version")
 
 -- Initialize the addon using AceAddon
 local addon = LibStub("AceAddon-3.0"):NewAddon(addonName, "AceConsole-3.0")
-print("SLG Debug: Created AceAddon instance")
 SLG.addon = addon
 
 -- Slash command for loot DB test
@@ -12,14 +10,12 @@ SLASH_SLGLOOTDB1 = "/slglootdb"
 SlashCmdList["SLGLOOTDB"] = function(msg)
     local itemId = tonumber(msg and msg:match("%d+"))
     if not itemId then
-        print("Usage: /slglootdb <itemId>")
         return
     end
     local helpers = SLG.modules["Helpers"]
     if helpers and helpers.TestLootDB then
         helpers:TestLootDB(itemId)
     else
-        print("Helpers module or TestLootDB not found.")
     end
 end
 
@@ -30,7 +26,6 @@ SlashCmdList["SLGDBTEST"] = function()
     if dbtest and dbtest.Toggle then
         dbtest:Toggle()
     else
-        print("DBTestWindow module not found.")
     end
 end
 
@@ -41,19 +36,19 @@ SLG.cache = {}
 
 -- Module registration
 function SLG:RegisterModule(name, module)
-    print("SLG Debug: Registering module:", name)
+
     self.modules[name] = module
     return module
 end
 
 -- Settings initialization
 function addon:InitializeSettings()
-    print("SLG Debug: Initializing settings...")
+
     if not SLGSettings then
-        print("SLG Debug: Creating new settings from defaults")
+
         SLGSettings = CopyTable(SLG.defaults.profile)
     else
-        print("SLG Debug: Using existing settings")
+
         -- Ensure minimap settings exist
         if not SLGSettings.minimap then
             SLGSettings.minimap = CopyTable(SLG.defaults.profile.minimap)
@@ -63,12 +58,12 @@ end
 
 -- Initialization function
 function addon:OnInitialize()
-    print("SLG Debug: OnInitialize called")
+
     -- Load settings
     self:InitializeSettings()
     
     -- Register options
-    print("SLG Debug: Registering options...")
+
     local options = {
         name = "Synastria Loot Guide",
         handler = self,
@@ -157,22 +152,17 @@ function addon:OnInitialize()
     AceConfigDialog:AddToBlizOptions("slg", "Synastria Loot Guide")
     
     -- Initialize modules
-    print("SLG Debug: Initializing modules...")
     for name, module in pairs(SLG.modules) do
         if module.Initialize then
-            print("SLG Debug: Initializing module:", name)
             module:Initialize()
         end
     end
     
     -- Register slash commands
-    print("SLG Debug: Registering slash commands...")
     self:RegisterChatCommand("slg", function(input)
         self:HandleSlashCommand(input)
     end)
     
-    -- Print loaded message
-    print("|cFF33FF99SLG|r loaded. Type /slg")
 end
 
 -- Slash command handler

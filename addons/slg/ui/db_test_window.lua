@@ -1,7 +1,9 @@
+print("SLG Debug: Loading db_test_window.lua")
 local addonName, SLG = ...
 
 -- Create the module
 local DBTestWindow = {}
+print("SLG Debug: Registering DBTestWindow module")
 SLG:RegisterModule("DBTestWindow", DBTestWindow)
 
 -- Create the DB Test window
@@ -49,7 +51,7 @@ function DBTestWindow:CreateDBTestWindow()
     closeButton:SetScript("OnClick", function() frame:Hide() end)
 
     -- Scroll Frame for content
-    local scrollFrame = CreateFrame("ScrollFrame", nil, frame, "UIPanelScrollFrameTemplate")
+    local scrollFrame = CreateFrame("ScrollFrame", nil, frame)
     scrollFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, -40)
     scrollFrame:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -30, 10)
 
@@ -83,64 +85,70 @@ function DBTestWindow:Toggle()
 end
 
 -- Dynamically get items for current zone from loot DB
-function DBTestWindow:GetZoneItemsFromDB(zoneName)
-    -- Check Loot DB API
-    if not ItemLocIsLoaded or not ItemLocGetSourceCount or not ItemLocGetSourceAt then
+function DBTestWindow:GetZoneItemsFromDB()
+    -- Check for Loot DB API presence
+    if not ItemLocIsLoaded or not ItemLocItemIsInZone then
         local text = self.content:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         text:SetPoint("TOPLEFT", self.content, "TOPLEFT", 0, 0)
-        text:SetText("Loot DB API not available.")
+        text:SetText("Loot DB API not present.")
         self.content:SetHeight(30)
         return
     end
-    local version = ItemLocIsLoaded()
-    if not version then
+    local dbVersion = ItemLocIsLoaded()
+    if not dbVersion then
         local text = self.content:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         text:SetPoint("TOPLEFT", self.content, "TOPLEFT", 0, 0)
-        text:SetText("Loot DB is not loaded.")
+        text:SetText("Loot DB not loaded.")
         self.content:SetHeight(30)
         return
     end
-
-    -- Get items for the zone
-    local ZoneManager = SLG.modules.ZoneManager
-    if not ZoneManager then
+    -- Determine current zone
+    local currentZoneId = nil
+    local zoneText = GetRealZoneText and GetRealZoneText() or "(nil)"
+    print("SLG Debug: ItemLocGetZoneId:", tostring(ItemLocGetZoneId), "type:", type(ItemLocGetZoneId))
+    print("SLG Debug: GetRealZoneText():", tostring(zoneText), "type:", type(zoneText))
+    if ItemLocGetZoneId then
+        local zoneIdResult = ItemLocGetZoneId(zoneText)
+        print("SLG Debug: ItemLocGetZoneId(GetRealZoneText()):", tostring(zoneIdResult), "type:", type(zoneIdResult))
+        currentZoneId = zoneIdResult
+    end
+    if not currentZoneId then
         local text = self.content:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         text:SetPoint("TOPLEFT", self.content, "TOPLEFT", 0, 0)
-        text:SetText("ZoneManager not available.")
+        text:SetText("Could not determine current zone ID.")
         self.content:SetHeight(30)
         return
     end
-    local items, stats = ZoneManager:GetZoneItems(zoneName)
-    if not items or #items == 0 then
-        local text = self.content:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-        text:SetPoint("TOPLEFT", self.content, "TOPLEFT", 0, 0)
-        text:SetText("No items found for this zone.")
-        self.content:SetHeight(30)
-        return
+    -- Get attunement check function
+    local isAttuned = function(itemId)
+        if SLG and SLG.modules and SLG.modules.Attunement and SLG.modules.Attunement.IsAttuned then
+            return SLG.modules.Attunement:IsAttuned(itemId)
+        elseif SynastriaCoreLib and SynastriaCoreLib.IsAttuned then
+            return SynastriaCoreLib.IsAttuned(itemId)
+        end
+        return false
     end
-
+    -- Find MAX_ITEMID from SynastriaCoreLib or use a safe default
+    local maxItemId = (SynastriaCoreLib and SynastriaCoreLib.MAX_ITEMID) or 100000
+    local found = 0
     local y = 0
     local rowHeight = 16
-    for i, item in ipairs(items) do
-        local itemId = item.id or item.itemId or item[1]
-        if itemId then
-            local itemData = SLG.modules.ItemManager and SLG.modules.ItemManager:GetItemData(itemId)
-            local name = (itemData and itemData.name) or ("Item " .. tostring(itemId))
-            local count = ItemLocGetSourceCount(itemId)
-            local srcSummary = ""
-            if count and count > 0 then
-                for j = 1, count do
-                    local srcType, objType, objId, chance, dropsPerThousand, objName, zoneName, spawnedCount = ItemLocGetSourceAt(itemId, j)
-                    srcSummary = srcSummary .. string.format("%s (%s) | Chance: %.2f%% | Zone: %s  ", tostring(objName), tostring(srcType), tonumber(chance) and chance * 100 or 0, tostring(zoneName))
-                end
-            else
-                srcSummary = "No sources found."
-            end
+    for itemId = 1, maxItemId do
+        if ItemLocItemIsInZone(itemId, currentZoneId) == 1 and not isAttuned(itemId) then
+            local name = GetItemInfo(itemId) or ("Item " .. tostring(itemId))
             local text = self.content:CreateFontString(nil, "OVERLAY", "GameFontNormal")
             text:SetPoint("TOPLEFT", self.content, "TOPLEFT", 0, -y)
-            text:SetText(string.format("[%d] %s: %s", itemId, name, srcSummary))
+            text:SetText(string.format("[%d] %s", itemId, name))
             y = y + rowHeight
+            found = found + 1
         end
+    end
+    if found == 0 then
+        local text = self.content:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        text:SetPoint("TOPLEFT", self.content, "TOPLEFT", 0, 0)
+        text:SetText("No unattuned items found in this zone.")
+        self.content:SetHeight(30)
+        return
     end
     self.content:SetHeight(math.max(y, 30))
 end

@@ -48,6 +48,7 @@ Libs\AceConfig-3.0\AceConfig-3.0.lua
 Libs\AceDB-3.0\AceDB-3.0.lua
 Libs\AceHook-3.0\AceHook-3.0.lua
 Libs\AceLocale-3.0\AceLocale-3.0.lua
+Libs\SynastriaItemDB\SynastriaItemDB.toc
 Libs\SynastriaCoreLib-1.0\Classes\Cache.lua
 Libs\SynastriaCoreLib-1.0\SynastriaCoreLib-1.0.xml
 
