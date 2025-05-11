@@ -99,6 +99,17 @@ function ItemList:UpdateDisplay()
         sourceFrame.nameText:SetTextColor(SLG.Colors.SOURCE.r, SLG.Colors.SOURCE.g, SLG.Colors.SOURCE.b)
         sourceFrame.nameText:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
         sourceFrame.statusText:Hide()
+
+        -- Make the sourceFrame clickable
+        sourceFrame:SetScript("OnMouseUp", function(self, button)
+            if button == "LeftButton" then
+                local npcName = sourceGroup.source
+                -- Extract base NPC name if difficulty is present (e.g., "Boss Name (Heroic)")
+                npcName = npcName:match("([^%(]+)") or npcName
+                npcName = npcName:gsub("^%s*(.-)%s*$", "%1") -- Trim whitespace
+                SendChatMessage(".findnpc " .. npcName)
+            end
+        end)
         
         -- Ensure items table is initialized
         if not sourceFrame.items then

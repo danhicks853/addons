@@ -134,6 +134,20 @@ function addon:OnInitialize()
                 order = 12,
                 width = "full"
             },
+            vendorExport = {
+                type = "execute",
+                name = "Export Vendor Data",
+                desc = "Export the collected vendor item data to the chat window.",
+                func = function()
+                    if SLG and SLG.modules and SLG.modules.Collector and SLG.modules.Collector.ExportVendorData then
+                        SLG.modules.Collector:ExportVendorData()
+                    else
+                        print("SLG Collector module not available to export vendor data.")
+                    end
+                end,
+                order = 13,
+                width = "full"
+            },
             about = {
                 type = "description",
                 name = "\nSynastria Loot Guide\n5/7/25\nWritten by Faithful Death Knight Dromkal",
