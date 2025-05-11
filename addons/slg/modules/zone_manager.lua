@@ -59,6 +59,9 @@ function ZoneManager:GetZoneItems(zoneName)
     local playerFaction = UnitFactionGroup("player")
     local factionSuffix = playerFaction == "Alliance" and "_A" or "_H"
     
+    -- Get player's class for class-specific item checks
+    local playerClass = SLG.modules.ItemManager:GetPlayerClass()
+    
     -- Use __order if present for boss ordering
     local bossKeys = zoneData.__order or {}
     local ordered = #bossKeys > 0
@@ -96,24 +99,25 @@ function ZoneManager:GetZoneItems(zoneName)
                     local itemData = SLG.modules.ItemManager:GetItemData(itemId)
                     if itemData then
                         local isAttuned = SLG.modules.Attunement:IsAttuned(itemId)
-                        local canUse = SLG.modules.ItemManager:CanUseItem(itemData.itemType)
+                        local canUseGeneral = SLG.modules.ItemManager:CanUseItem(itemData.itemType)
+                        local canUseClassWise = SLG.modules.ItemManager:PlayerCanUseItemClassWise(itemId, playerClass)
 
-                        -- Only add items that match the current display mode
-                        if showAll then
+                        -- Only add items that match the current display mode and class restrictions
+                        if showAll and canUseClassWise then
                             stats.total = stats.total + 1
                             if isAttuned then stats.attuned = stats.attuned + 1 end
-                            table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, source = sourceName })
-                        elseif showEligible and canUse then
+table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, equipSlot = itemData.equipSlot, source = sourceName })
+                        elseif showEligible and canUseGeneral and canUseClassWise then
                             stats.total = stats.total + 1
                             if isAttuned then stats.attuned = stats.attuned + 1 end
-                            table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, source = sourceName })
-                        elseif showAttuned and canUse and isAttuned then
+table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, equipSlot = itemData.equipSlot, source = sourceName })
+                        elseif showAttuned and canUseGeneral and isAttuned and canUseClassWise then
                             stats.total = stats.total + 1
                             stats.attuned = stats.attuned + 1
-                            table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, source = sourceName })
-                        elseif showNotAttuned and canUse and not isAttuned then
+table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, equipSlot = itemData.equipSlot, source = sourceName })
+                        elseif showNotAttuned and canUseGeneral and not isAttuned and canUseClassWise then
                             stats.total = stats.total + 1
-                            table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, source = sourceName })
+table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, equipSlot = itemData.equipSlot, source = sourceName })
                         end
                     end
                 end
@@ -140,18 +144,18 @@ function ZoneManager:GetZoneItems(zoneName)
                                 if showAll then
                                     stats.total = stats.total + 1
                                     if isAttuned then stats.attuned = stats.attuned + 1 end
-                                    table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, source = sourceName })
-                                elseif showEligible and canUse then
+                                    table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, equipSlot = itemData.equipSlot, source = sourceName })
+                                elseif showEligible and canUseGeneral and canUseClassWise then
                                     stats.total = stats.total + 1
                                     if isAttuned then stats.attuned = stats.attuned + 1 end
-                                    table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, source = sourceName })
-                                elseif showAttuned and canUse and isAttuned then
+                                    table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, equipSlot = itemData.equipSlot, source = sourceName })
+                                elseif showAttuned and canUseGeneral and isAttuned and canUseClassWise then
                                     stats.total = stats.total + 1
                                     stats.attuned = stats.attuned + 1
-                                    table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, source = sourceName })
-                                elseif showNotAttuned and canUse and not isAttuned then
+                                    table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, equipSlot = itemData.equipSlot, source = sourceName })
+                                elseif showNotAttuned and canUseGeneral and not isAttuned and canUseClassWise then
                                     stats.total = stats.total + 1
-                                    table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, source = sourceName })
+                                    table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, equipSlot = itemData.equipSlot, source = sourceName })
                                 end
                             end
                         end
@@ -168,18 +172,18 @@ function ZoneManager:GetZoneItems(zoneName)
                                 if showAll then
                                     stats.total = stats.total + 1
                                     if isAttuned then stats.attuned = stats.attuned + 1 end
-                                    table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, source = sourceName })
-                                elseif showEligible and canUse then
+                                    table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, equipSlot = itemData.equipSlot, source = sourceName })
+                                elseif showEligible and canUseGeneral and canUseClassWise then
                                     stats.total = stats.total + 1
                                     if isAttuned then stats.attuned = stats.attuned + 1 end
-                                    table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, source = sourceName })
-                                elseif showAttuned and canUse and isAttuned then
+                                    table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, equipSlot = itemData.equipSlot, source = sourceName })
+                                elseif showAttuned and canUseGeneral and isAttuned and canUseClassWise then
                                     stats.total = stats.total + 1
                                     stats.attuned = stats.attuned + 1
-                                    table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, source = sourceName })
-                                elseif showNotAttuned and canUse and not isAttuned then
+                                    table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, equipSlot = itemData.equipSlot, source = sourceName })
+                                elseif showNotAttuned and canUseGeneral and not isAttuned and canUseClassWise then
                                     stats.total = stats.total + 1
-                                    table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, source = sourceName })
+                                    table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, equipSlot = itemData.equipSlot, source = sourceName })
                                 end
                             end
                         end

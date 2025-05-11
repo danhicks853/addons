@@ -171,6 +171,11 @@ function addon:OnInitialize()
             module:Initialize()
         end
     end
+
+    -- Show main window if auto-open is enabled (after all modules are loaded)
+    if SLGSettings.autoOpen and SLG.modules.MainWindow and SLG.modules.MainWindow.Show then
+        SLG.modules.MainWindow:Show()
+    end
     
     -- Register slash commands
     self:RegisterChatCommand("slg", function(input)

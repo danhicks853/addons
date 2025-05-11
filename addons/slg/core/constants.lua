@@ -233,4 +233,4 @@ SLG.ZoneCategories = {
             "Silvermoon City"
         }
     }
-} 
+}

@@ -65,9 +65,10 @@ data\zone_items.lua
 # UI Components
 ui\frames.lua
 ui\minimap_button.lua
+ui\test_load.lua
+ui\item_list.lua
 ui\main_window.lua
 ui\zone_browser.lua
-ui\item_list.lua
 
 # Modules
 modules\item_manager.lua

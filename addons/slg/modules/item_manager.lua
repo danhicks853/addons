@@ -47,6 +47,7 @@ function ItemManager:GetItemData(itemId)
         link = link,
         quality = quality,
         itemType = itemType,
+        equipSlot = equipSlot,
         texture = texture
     }
     itemCache[itemId] = itemData
@@ -220,6 +221,65 @@ function ItemManager:GetInventoryItemLink(itemId)
         end
     end
     return nil
+end
+
+
+-- Get player class (helper function)
+function ItemManager:GetPlayerClass()
+    local _, playerClass = UnitClass("player")
+    return playerClass
+end
+
+-- Check if item is usable by the player's class based on tooltip
+function ItemManager:PlayerCanUseItemClassWise(itemId, playerClass)
+    if not itemId or not playerClass then return true end -- Default to true if info is missing
+
+    local tt = CreateFrame("GameTooltip", "SLGItemTooltip", UIParent, "GameTooltipTemplate")
+    tt:SetOwner(UIParent, "ANCHOR_NONE")
+    tt:SetHyperlink("item:" .. itemId)
+
+    local itemIsClassRestricted = false
+    local playerClassAllowed = false
+
+    for i = 1, tt:NumLines() do
+        local lineText = _G["SLGItemTooltipTextLeft" .. i]:GetText()
+        if lineText then
+            -- Convert to uppercase for consistent matching
+            local upperLineText = string.upper(lineText)
+            local upperPlayerClass = string.upper(playerClass)
+
+            if string.find(upperLineText, "^CLASSES: ") then
+                itemIsClassRestricted = true
+                local classesStr = string.sub(upperLineText, string.len("CLASSES: ") + 1)
+                local restrictedClasses = {}
+                for class in string.gmatch(classesStr, "[^,]+") do
+                    table.insert(restrictedClasses, string.upper(string.trim(class)))
+                end
+                for _, restrictedClass in ipairs(restrictedClasses) do
+                    if restrictedClass == upperPlayerClass then
+                        playerClassAllowed = true
+                        break
+                    end
+                end
+                break -- Found class restriction line, no need to check further lines for this
+            elseif string.find(upperLineText, "^CLASS: ") then
+                itemIsClassRestricted = true
+                local restrictedClass = string.upper(string.trim(string.sub(upperLineText, string.len("CLASS: ") + 1)))
+                if restrictedClass == upperPlayerClass then
+                    playerClassAllowed = true
+                end
+                break -- Found class restriction line
+            end
+        end
+    end
+
+    tt:Hide()
+
+    if not itemIsClassRestricted then
+        return true -- Not restricted, so usable
+    end
+
+    return playerClassAllowed -- Restricted, so depends on if player class is allowed
 end
 
 -- Return the module

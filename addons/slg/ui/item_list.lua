@@ -1,5 +1,6 @@
 local addonName, SLG = ...
 
+
 -- Create the module
 local ItemList = {}
 SLG:RegisterModule("ItemList", ItemList)
@@ -11,10 +12,12 @@ end
 
 -- Update the item list display
 function ItemList:UpdateDisplay()
+
     local MainWindow = SLG.modules.MainWindow
     if not MainWindow or not MainWindow.frame:IsShown() then return end
     
-    local SCROLLBAR_WIDTH = 20
+    local currentZone = GetRealZoneText()
+
     
     -- Force content frame width to match scroll frame
     if MainWindow.scrollFrame and MainWindow.content then
@@ -33,6 +36,7 @@ function ItemList:UpdateDisplay()
     
     -- Get items for current zone
     local sourceGroups, stats = SLG.modules.ZoneManager:GetZoneItems(currentZone)
+
     
     -- Update progress text
     MainWindow.progressText:SetText(string.format("%d/%d", stats.attuned, stats.total))
@@ -135,6 +139,8 @@ function ItemList:UpdateDisplay()
             for idx, item in ipairs(sourceGroup.items) do
                 local itemFrame = SLG.modules.Frames:GetFrame(false)
                 itemFrame:SetParent(MainWindow.content)
+                itemFrame.itemID = item.id
+                itemFrame:EnableMouse(true)
                 itemFrame:SetPoint("TOPLEFT", MainWindow.content, "TOPLEFT", 8, -totalHeight)
                 itemFrame:SetPoint("TOPRIGHT", MainWindow.content, "TOPRIGHT", -10, -totalHeight)
                 itemFrame:SetHeight(itemHeight)
@@ -149,14 +155,16 @@ function ItemList:UpdateDisplay()
                 -- Explicitly set width to fill available space
                 local parentWidth = itemFrame:GetParent():GetWidth() or 0
                 local leftPad, rightPad = 8, 10
-                itemFrame:SetWidth(parentWidth - leftPad - rightPad - SCROLLBAR_WIDTH)
+                itemFrame:SetWidth(parentWidth - leftPad - rightPad)
                 itemFrame:ClearAllPoints()
                 itemFrame:SetPoint("TOPLEFT", MainWindow.content, "TOPLEFT", leftPad, -totalHeight)
-                itemFrame:SetPoint("TOPRIGHT", MainWindow.content, "TOPRIGHT", -(rightPad + SCROLLBAR_WIDTH), -totalHeight)
+                itemFrame:SetPoint("TOPRIGHT", MainWindow.content, "TOPRIGHT", -rightPad, -totalHeight)
 
                 -- Set statusText to a fixed width
-                local statusTextWidth = 60
+                local statusTextWidth = 100 -- Increased width
                 itemFrame.statusText:SetWidth(statusTextWidth)
+                itemFrame.statusText:SetWordWrap(false) -- Disable word wrap
+                itemFrame.statusText:SetNonSpaceWrap(false) -- Disable non-space wrap
                 itemFrame.statusText:ClearAllPoints()
                 itemFrame.statusText:SetPoint("RIGHT", itemFrame, "RIGHT", -5, 0)
                 itemFrame.statusText:SetJustifyH("RIGHT")
@@ -172,17 +180,95 @@ function ItemList:UpdateDisplay()
                 itemFrame.nameText:SetWordWrap(false)
                 itemFrame.nameText:SetNonSpaceWrap(false)
                 
+
+                
+                -- Set nameText to item name
                 itemFrame.nameText:SetText(item.name and item.name ~= "" and item.name or ("Item %d"):format(item.id))
+
+                -- Get attunement status
+                local itemData = SLG.modules.ItemManager:GetItemData(item.id)
+                local itemType = itemData and itemData.itemType or "" -- Default to empty string if no data
+                local statusText, statusColor = SLG.modules.Attunement:GetStatusText(item.id, itemType)
+
+                if statusText == itemType then -- Only add slot info if not attuned/looted
+                    local typeText = itemType
+                    local slotText = ""
+
+                    -- Define item types that should not have slot text appended
+                    local noSlotTextTypes = {
+                        SLG.ItemTypes.WEAPON.ONEHAND_SWORD, SLG.ItemTypes.WEAPON.TWOHAND_SWORD,
+                        SLG.ItemTypes.WEAPON.ONEHAND_AXE, SLG.ItemTypes.WEAPON.TWOHAND_AXE,
+                        SLG.ItemTypes.WEAPON.ONEHAND_MACE, SLG.ItemTypes.WEAPON.TWOHAND_MACE,
+                        SLG.ItemTypes.WEAPON.DAGGER, SLG.ItemTypes.WEAPON.FIST,
+                        SLG.ItemTypes.WEAPON.POLEARM, SLG.ItemTypes.WEAPON.STAFF,
+                        SLG.ItemTypes.WEAPON.BOW, SLG.ItemTypes.WEAPON.CROSSBOW,
+                        SLG.ItemTypes.WEAPON.GUN, SLG.ItemTypes.WEAPON.WAND,
+                        SLG.ItemTypes.WEAPON.SHIELD, -- Shields are listed under WEAPON in constants
+                        SLG.ItemTypes.ACCESSORY.NECK,
+                        SLG.ItemTypes.ACCESSORY.TRINKET,
+                        SLG.ItemTypes.ACCESSORY.CLOAK
+                        -- Rings are often "Finger 1", "Finger 2", so they might still need slot info.
+                        -- Let's exclude rings from this list for now.
+                    }
+
+                    local shouldAddSlotText = true
+                    for _, noSlotType in ipairs(noSlotTextTypes) do
+                        if itemType == noSlotType then
+                            shouldAddSlotText = false
+                            break
+                        end
+                    end
+
+                    if shouldAddSlotText and item.equipSlot and item.equipSlot ~= "" then
+                        local slotNames = {
+                            INVTYPE_HEAD = "Head",
+                            INVTYPE_NECK = "Neck",
+                            INVTYPE_SHOULDER = "Shoulder",
+                            INVTYPE_BODY = "Shirt",
+                            INVTYPE_CHEST = "Chest",
+                            INVTYPE_ROBE = "Chest",
+                            INVTYPE_WAIST = "Waist",
+                            INVTYPE_LEGS = "Legs",
+                            INVTYPE_FEET = "Feet",
+                            INVTYPE_WRIST = "Wrist",
+                            INVTYPE_HAND = "Hands",
+                            INVTYPE_FINGER = "Finger", -- Kept for rings
+                            INVTYPE_TRINKET = "Trinket",
+                            INVTYPE_CLOAK = "Back",
+                            INVTYPE_TABARD = "Tabard",
+                            INVTYPE_HOLDABLE = "Off-hand",
+                            INVTYPE_SHIELD = "Shield",
+                            INVTYPE_RANGED = "Ranged",
+                            INVTYPE_RANGEDRIGHT = "Ranged",
+                            INVTYPE_WEAPONMAINHAND = "Main Hand",
+                            INVTYPE_WEAPONOFFHAND = "Off Hand",
+                            INVTYPE_2HWEAPON = "Two-Hand",
+                            INVTYPE_WEAPON = "One-Hand",
+                            INVTYPE_THROWN = "Thrown",
+                            INVTYPE_RELIC = "Relic",
+                        }
+                        local slotName = slotNames[item.equipSlot]
+                        if slotName then
+                            slotText = slotName
+                        end
+                    end
+
+                    if slotText ~= "" then
+                        itemFrame.statusText:SetText(string.format("%s %s", typeText, slotText))
+                    else
+                        itemFrame.statusText:SetText(typeText)
+                    end
+                else
+                    itemFrame.statusText:SetText(statusText)
+                    if statusColor then
+                        itemFrame.statusText:SetTextColor(statusColor.r, statusColor.g, statusColor.b)
+                    else
+                        itemFrame.statusText:SetTextColor(SLG.Colors.NOT_ATTUNED.r, SLG.Colors.NOT_ATTUNED.g, SLG.Colors.NOT_ATTUNED.b)
+                    end
+                end
                 
-                -- Get status text and color
-                local statusText, statusColor = SLG.modules.Attunement:GetStatusText(item.id, item.itemType)
-                itemFrame.statusText:SetText(statusText)
-                itemFrame.statusText:SetTextColor(statusColor.r, statusColor.g, statusColor.b)
-                
-                itemFrame.itemID = item.id
-                
-                -- Set up tooltip
                 itemFrame:SetScript("OnEnter", function(self)
+
                     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
                     GameTooltip:SetHyperlink("item:" .. self.itemID)
                     GameTooltip:AddLine("Source: " .. sourceGroup.source, 1, 1, 1)
