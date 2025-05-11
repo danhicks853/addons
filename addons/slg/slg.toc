@@ -66,7 +66,6 @@ data\zone_items.lua
 ui\frames.lua
 ui\minimap_button.lua
 ui\main_window.lua
-ui\db_test_window.lua
 ui\zone_browser.lua
 ui\item_list.lua
 
