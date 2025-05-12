@@ -40,17 +40,17 @@ function ZoneManager:OnZoneChange(event)
 end
 
 -- Get items for current zone
-function ZoneManager:GetZoneItems(zoneName, difficulty)
-    print("==== CORE DATA DEBUG ====")
-    print("SLG.ZoneItems exists:", SLG.ZoneItems ~= nil)
-    print("SLG.ZoneInfo exists:", SLG.ZoneInfo ~= nil)
-    print("ItemManager available:", SLG.modules.ItemManager ~= nil)
-    print("Attunement available:", SLG.modules.Attunement ~= nil)
+function ZoneManager:GetZoneItems(zoneName, difficulty, noFiltering)
+    
+    
+    
+    
+    
 
     local testItem = 50274 -- Example item ID
     local testItemData = SLG.modules.ItemManager:GetItemData(testItem)
-    print("Test item lookup (50274):", testItemData and testItemData.name or "FAILED")
-    print("========================")
+    
+    
 
     local zoneData = SLG.ZoneItems[zoneName]
     if not zoneData then
@@ -74,19 +74,19 @@ function ZoneManager:GetZoneItems(zoneName, difficulty)
         -- Fallback to API detection if ZoneInfo missing
         local _, detectedType = GetInstanceInfo()
         instanceType = detectedType or "instance"
-        print("WARNING: Using fallback instance type:", instanceType)
+        
     end
     
     -- Initialize empty ZoneInfo if missing
     if not SLG.ZoneInfo then
         SLG.ZoneInfo = {}
-        print("WARNING: Initialized missing SLG.ZoneInfo table")
+        
     end
     
     -- Always use GetInstanceInfo for raids to determine difficulty
     local difficultySetting
     local _, _, difficultyID = GetInstanceInfo()
-    print("[SLG] Detected instanceType:", instanceType, "difficultyID:", difficultyID)
+    
     if instanceType == "raid" then
         if difficultyID == 4 then
             difficultySetting = "25ManHeroic"
@@ -109,7 +109,7 @@ function ZoneManager:GetZoneItems(zoneName, difficulty)
             difficultySetting = "Normal"
         end
     end
-    print("[SLG] Using difficultySetting:", difficultySetting)
+    
     
     -- Determine which difficulties to show
     local showDifficulties = {
@@ -177,48 +177,64 @@ function ZoneManager:GetZoneItems(zoneName, difficulty)
     for _, sourceName in ipairs(orderedSourceNames) do
         local itemIds = zoneData[sourceName]
         if sourceName ~= "__order" then
-            local sourceDiff = sourceName:match("%(([^%)]+)%)")
             local sourceItems = {}
-            
-            local shouldShow = instanceType == "outdoor" or 
-                           (not sourceDiff and showDifficulties["base"]) or
-                           (sourceDiff and showDifficulties[sourceDiff])
-            
-            if shouldShow then
+            if noFiltering then
                 if itemIds and type(itemIds) == "table" then
                     for _, itemId in ipairs(itemIds) do
                         local itemData = SLG.modules.ItemManager:GetItemData(itemId)
                         if itemData then
-                            local isAttuned = SLG.modules.Attunement:IsAttuned(itemId)
-                            local canUse = SLG.modules.ItemManager:CanUseItem(itemData)
-                            if canUse then
-                                stats.zoneEligible = stats.zoneEligible + 1
-                                if isAttuned then
-                                    stats.zoneAttuned = stats.zoneAttuned + 1
+                            table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, source = sourceName })
+                            stats.listTotal = stats.listTotal + 1
+                        end
+                    end
+                end
+                if #sourceItems > 0 then
+                    table.insert(sourceGroups, { source = sourceName, items = sourceItems })
+                end
+            else
+                local sourceDiff = sourceName:match("%(([^%)]+)%)")
+                
+                local shouldShow = instanceType == "outdoor" or 
+                               (not sourceDiff and showDifficulties["base"]) or
+                               (sourceDiff and showDifficulties[sourceDiff])
+                if shouldShow then
+                    if itemIds and type(itemIds) == "table" then
+                        for _, itemId in ipairs(itemIds) do
+                            local itemData = SLG.modules.ItemManager:GetItemData(itemId)
+                            if itemData then
+                                local isAttuned = SLG.modules.Attunement:IsAttuned(itemId)
+                                local canUse = SLG.modules.ItemManager:CanUseItem(itemData)
+                                if canUse then
+                                    stats.zoneEligible = stats.zoneEligible + 1
+                                    if isAttuned then
+                                        stats.zoneAttuned = stats.zoneAttuned + 1
+                                    end
                                 end
-                            end
-                            if showAll then
-                                stats.listTotal = stats.listTotal + 1
-                                if isAttuned then stats.listAttuned = stats.listAttuned + 1 end
-                                table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, source = sourceName })
-                            else
-                                if shouldCountItem(canUse, isAttuned) then
+                                if showAll then
                                     stats.listTotal = stats.listTotal + 1
                                     if isAttuned then stats.listAttuned = stats.listAttuned + 1 end
                                     table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, source = sourceName })
+                                else
+                                    if shouldCountItem(canUse, isAttuned) then
+                                        stats.listTotal = stats.listTotal + 1
+                                        if isAttuned then stats.listAttuned = stats.listAttuned + 1 end
+                                        table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, source = sourceName })
+                                    end
                                 end
                             end
                         end
                     end
-                end
-                
-                -- Add source items to groups
-                if #sourceItems > 0 then
-                    sourceGroups[sourceName] = sourceItems
+                    if #sourceItems > 0 then
+                        sourceGroups[sourceName] = sourceItems
+                    end
                 end
             end
         end 
     end 
+    
+    if noFiltering then
+        return sourceGroups, stats
+    end
     
     -- Build final items list in the order of orderedSourceNames
     local allItems = {}
@@ -238,7 +254,7 @@ function ZoneManager:GetZoneItems(zoneName, difficulty)
         end
     end
     
-    print("Total entries to display:", #allItems, "(", #allItems - #sourceGroups, "actual items)")
+    
     
     -- Update UI
     if SLG.modules.ItemList then

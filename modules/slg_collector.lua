@@ -115,14 +115,14 @@ end
 
 SLASH_SLGEXPORTLOOT1 = "/slgexportloot"
 SlashCmdList["SLGEXPORTLOOT"] = function()
-    if not SLG_CollectedLoot then print("No loot data collected yet.") return end
+    if not SLG_CollectedLoot then  return end
     local out = "SLG_CollectedLoot = " .. TableToLua(SLG_CollectedLoot)
-    print("\124cffffd700SLG Collected Loot:\124r\n" .. out)
+    
 end
 
 _G.ExportVendorsOnly = function()
     if not SLG_CollectedLoot or not next(SLG_CollectedLoot) then
-        print("No vendor data to export.")
+        
         return
     end
     local out = ""
@@ -135,9 +135,9 @@ _G.ExportVendorsOnly = function()
         end
     end
     if out == "" then
-        print("No vendor data to export.")
+        
     else
-        print("|cffffd700SLG Vendor Export:|r\n" .. out)
+        
     end
 end
 

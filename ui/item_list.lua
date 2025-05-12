@@ -24,7 +24,7 @@ function ItemList:Initialize()
     self.scrollChild:SetSize(380, 500)
     self.scrollFrame:SetScrollChild(self.scrollChild)
     
-    print("ItemList initialized with scrollFrame")
+    
 end
 
 -- Update the item list display
@@ -35,7 +35,7 @@ function ItemList:UpdateDisplay()
     -- Check if zone is implemented
     local currentZone = GetRealZoneText()
     if not SLG.ZoneItems[currentZone] then
-        print(string.format("|cffff0000%s has not yet been implemented in Synastria Loot Guide|r", currentZone))
+        
         MainWindow.content:SetHeight(0)
         MainWindow.scrollBar:SetMinMaxValues(0, 0)
         return
@@ -197,21 +197,21 @@ function ItemList:UpdateDisplay()
 end
 
 function ItemList:SetItems(items, stats)
-    print("==== ITEM LIST SET ====")
-    print("Received items:", #items)
+    
+    
     
     self.items = items
     self.stats = stats
     
     -- Verify and initialize UI if needed
     if not self.frame or not self.scrollFrame then
-        print("Initializing UI components")
+        
         self:Initialize()
     end
     
     -- Show frame if hidden
     if not self.frame:IsShown() then
-        print("Showing ItemList frame")
+        
         self.frame:Show()
     end
     
@@ -221,17 +221,17 @@ end
 function ItemList:UpdateList()
     -- Verify UI components exist
     if not self.scrollFrame then
-        print("ERROR: scrollFrame missing - reinitializing")
+        
         self:Initialize()
         if not self.scrollFrame then
-            print("CRITICAL: Failed to initialize scrollFrame")
+            
             return
         end
     end
     
-    print("==== UI DEBUG ====")
-    print("Frame exists:", self.frame and true or false)
-    print("scrollFrame exists:", self.scrollFrame and true or false)
+    
+    
+    
     
     -- Clear existing items
     for i = 1, #self.buttons do
@@ -241,7 +241,7 @@ function ItemList:UpdateList()
     end
     
     if #self.items == 0 then
-        print("WARNING: Empty items list passed to UI")
+        
         return
     end
     
@@ -250,7 +250,7 @@ function ItemList:UpdateList()
         if not self.buttons[i] then
             self.buttons[i] = self:CreateButton()  -- Using original CreateButton method
             if not self.buttons[i] then
-                print("ERROR: Failed to create button for item", i)
+                
                 break
             end
         end
@@ -259,13 +259,13 @@ function ItemList:UpdateList()
         self.buttons[i]:Show()
     end
     
-    print("Updated", #self.items, "items in UI")
-    print("================")
+    
+    
 end
 
 function ItemList:CreateButton()
     if not self.scrollChild then
-        print("ERROR: scrollChild missing in CreateButton")
+        
         return nil
     end
     
@@ -301,7 +301,7 @@ function ItemList:CreateButton()
         end)
     end
     
-    print("Created new item button")
+    
     return button
 end
 

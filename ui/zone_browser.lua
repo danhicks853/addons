@@ -243,7 +243,7 @@ function ZoneBrowser:ShowZoneItems(zoneName)
     -- Get items for the selected zone - force showAll mode
     local originalMode = SLGSettings.displayMode
     SLGSettings.displayMode = "all"
-    local sourceGroups, stats = SLG.modules.ZoneManager:GetZoneItems(zoneName)
+    local sourceGroups, stats = SLG.modules.ZoneManager:GetZoneItems(zoneName, nil, true)
     SLGSettings.displayMode = originalMode
     
     -- Update progress text

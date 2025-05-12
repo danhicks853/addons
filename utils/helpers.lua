@@ -94,7 +94,7 @@ end
 -- Debug functions
 function Helpers:Debug(...)
     if SLGSettings.debug then
-        print("|cFF33FF99SLG Debug:|r", ...)
+        
     end
 end
 

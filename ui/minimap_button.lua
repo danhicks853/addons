@@ -37,11 +37,11 @@ local function OnDragStop(self)
 end
 
 function MinimapButton:Initialize()
-    print("SLG_DEBUG: Initializing minimap button")
+    
     
     -- Check if minimap button is enabled in settings
     if SLGSettings and SLGSettings.showMinimapButton == false then
-        print("SLG_DEBUG: Minimap button disabled in settings")
+        
         return
     end
     
@@ -55,13 +55,13 @@ function MinimapButton:Initialize()
         end
     end)
     
-    print("SLG_DEBUG: Minimap button created successfully")
+    
     
     -- Check if button is visible
     if self.button and self.button:IsShown() then
-        print("SLG_DEBUG: Minimap button is visible")
+        
     else
-        print("SLG_DEBUG: Minimap button exists but not visible")
+        
     end
 end
 
