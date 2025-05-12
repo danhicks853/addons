@@ -126,7 +126,6 @@ function ZoneManager:GetZoneItems(zoneName, difficulty)
     elseif difficultySetting == "Heroic" then
         showDifficulties["Heroic"] = true
     elseif difficultySetting == "25ManHeroic" then
-        showDifficulties["Heroic"] = true
         showDifficulties["25ManHeroic"] = true
     end
     
@@ -153,7 +152,30 @@ function ZoneManager:GetZoneItems(zoneName, difficulty)
         return pairs(zoneData)
     end
     
-    for sourceName, itemIds in boss_iter() do
+    local orderedSourceNames = {}
+    local zoneData = SLG.ZoneItems[zoneName] or {}
+    if zoneData.__order and type(zoneData.__order) == "table" then
+        for _, name in ipairs(zoneData.__order) do
+            table.insert(orderedSourceNames, name)
+        end
+        -- Optionally, add any keys not in __order at the end
+        for k, _ in pairs(zoneData) do
+            if k ~= "__order" then
+                local found = false
+                for _, v in ipairs(orderedSourceNames) do
+                    if v == k then found = true break end
+                end
+                if not found then table.insert(orderedSourceNames, k) end
+            end
+        end
+    else
+        for k, _ in pairs(zoneData) do
+            if k ~= "__order" then table.insert(orderedSourceNames, k) end
+        end
+    end
+
+    for _, sourceName in ipairs(orderedSourceNames) do
+        local itemIds = zoneData[sourceName]
         if sourceName ~= "__order" then
             local sourceDiff = sourceName:match("%(([^%)]+)%)")
             local sourceItems = {}
@@ -198,25 +220,16 @@ function ZoneManager:GetZoneItems(zoneName, difficulty)
         end 
     end 
     
-    -- Build final items list properly
+    -- Build final items list in the order of orderedSourceNames
     local allItems = {}
-    for sourceName, sourceItems in pairs(sourceGroups) do
-        if not sourceName or sourceName == "" then
-            print("WARNING: Skipping invalid source name")
-            break
-        end
-        
-        print("Processing source:", sourceName, "Items:", #sourceItems)
-        
-        -- Only add header if there are items to show
-        if #sourceItems > 0 then
-            -- Add header ONCE per boss
+    for _, sourceName in ipairs(orderedSourceNames) do
+        local sourceItems = sourceGroups[sourceName]
+        if sourceItems and #sourceItems > 0 then
             table.insert(allItems, {
                 isHeader = true,
                 name = sourceName,
                 source = sourceName
             })
-            -- Add only real items (with id) under this header
             for _, itemData in ipairs(sourceItems) do
                 if itemData.id then
                     table.insert(allItems, itemData)
