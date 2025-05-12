@@ -88,7 +88,15 @@ function ZoneManager:GetZoneItems(zoneName)
     local showEligible = mode == "eligible"
     local showAttuned = mode == "attuned"
     local showNotAttuned = mode == "not_attuned"
-
+    
+    local function shouldCountItem(canUse, isAttuned)
+        if showAll then return true end
+        if showEligible then return canUse end
+        if showAttuned then return canUse and isAttuned end
+        if showNotAttuned then return canUse and not isAttuned end
+        return false
+    end
+    
     local function boss_iter()
         if ordered then
             local i = 0
@@ -115,27 +123,22 @@ function ZoneManager:GetZoneItems(zoneName)
                         if itemData then
                             local isAttuned = SLG.modules.Attunement:IsAttuned(itemId)
                             local canUse = SLG.modules.ItemManager:CanUseItem(itemData)
-                                    if canUse then
-                                        stats.zoneEligible = stats.zoneEligible + 1
-                                        if isAttuned then
-                                            stats.zoneAttuned = stats.zoneAttuned + 1
-                                        end
-                                    end
+                            if canUse then
+                                stats.zoneEligible = stats.zoneEligible + 1
+                                if isAttuned then
+                                    stats.zoneAttuned = stats.zoneAttuned + 1
+                                end
+                            end
                             if showAll then
                                 stats.listTotal = stats.listTotal + 1
                                 if isAttuned then stats.listAttuned = stats.listAttuned + 1 end
                                 table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, source = sourceName })
-                            elseif showEligible and canUse then
-                                stats.listTotal = stats.listTotal + 1
-                                if isAttuned then stats.listAttuned = stats.listAttuned + 1 end
-                                table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, source = sourceName })
-                            elseif showAttuned and canUse and isAttuned then
-                                stats.listTotal = stats.listTotal + 1
-                                stats.listAttuned = stats.listAttuned + 1
-                                table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, source = sourceName })
-                            elseif showNotAttuned and canUse and not isAttuned then
-                                stats.listTotal = stats.listTotal + 1
-                                table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, source = sourceName })
+                            else
+                                if shouldCountItem(canUse, isAttuned) then
+                                    stats.listTotal = stats.listTotal + 1
+                                    if isAttuned then stats.listAttuned = stats.listAttuned + 1 end
+                                    table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, source = sourceName })
+                                end
                             end
                         end
                     end
@@ -157,28 +160,22 @@ function ZoneManager:GetZoneItems(zoneName)
                             if itemData then
                                 local isAttuned = SLG.modules.Attunement:IsAttuned(itemId)
                                 local canUse = SLG.modules.ItemManager:CanUseItem(itemData)
-                                    if canUse then
-                                        stats.zoneEligible = stats.zoneEligible + 1
-                                        if isAttuned then
-                                            stats.zoneAttuned = stats.zoneAttuned + 1
-                                        end
+                                if canUse then
+                                    stats.zoneEligible = stats.zoneEligible + 1
+                                    if isAttuned then
+                                        stats.zoneAttuned = stats.zoneAttuned + 1
                                     end
-
+                                end
                                 if showAll then
                                     stats.listTotal = stats.listTotal + 1
                                     if isAttuned then stats.listAttuned = stats.listAttuned + 1 end
                                     table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, source = sourceName })
-                                elseif showEligible and canUse then
-                                    stats.listTotal = stats.listTotal + 1
-                                    if isAttuned then stats.listAttuned = stats.listAttuned + 1 end
-                                    table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, source = sourceName })
-                                elseif showAttuned and canUse and isAttuned then
-                                    stats.listTotal = stats.listTotal + 1
-                                    stats.listAttuned = stats.listAttuned + 1
-                                    table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, source = sourceName })
-                                elseif showNotAttuned and canUse and not isAttuned then
-                                    stats.listTotal = stats.listTotal + 1
-                                    table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, source = sourceName })
+                                else
+                                    if shouldCountItem(canUse, isAttuned) then
+                                        stats.listTotal = stats.listTotal + 1
+                                        if isAttuned then stats.listAttuned = stats.listAttuned + 1 end
+                                        table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, source = sourceName })
+                                    end
                                 end
                             end
                         end
@@ -191,28 +188,22 @@ function ZoneManager:GetZoneItems(zoneName)
                             if itemData then
                                 local isAttuned = SLG.modules.Attunement:IsAttuned(itemId)
                                 local canUse = SLG.modules.ItemManager:CanUseItem(itemData)
-                                    if canUse then
-                                        stats.zoneEligible = stats.zoneEligible + 1
-                                        if isAttuned then
-                                            stats.zoneAttuned = stats.zoneAttuned + 1
-                                        end
+                                if canUse then
+                                    stats.zoneEligible = stats.zoneEligible + 1
+                                    if isAttuned then
+                                        stats.zoneAttuned = stats.zoneAttuned + 1
                                     end
-
+                                end
                                 if showAll then
                                     stats.listTotal = stats.listTotal + 1
                                     if isAttuned then stats.listAttuned = stats.listAttuned + 1 end
                                     table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, source = sourceName })
-                                elseif showEligible and canUse then
-                                    stats.listTotal = stats.listTotal + 1
-                                    if isAttuned then stats.listAttuned = stats.listAttuned + 1 end
-                                    table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, source = sourceName })
-                                elseif showAttuned and canUse and isAttuned then
-                                    stats.listTotal = stats.listTotal + 1
-                                    stats.listAttuned = stats.listAttuned + 1
-                                    table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, source = sourceName })
-                                elseif showNotAttuned and canUse and not isAttuned then
-                                    stats.listTotal = stats.listTotal + 1
-                                    table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, source = sourceName })
+                                else
+                                    if shouldCountItem(canUse, isAttuned) then
+                                        stats.listTotal = stats.listTotal + 1
+                                        if isAttuned then stats.listAttuned = stats.listAttuned + 1 end
+                                        table.insert(sourceItems, { id = itemId, name = itemData.name, itemType = itemData.itemType, source = sourceName })
+                                    end
                                 end
                             end
                         end

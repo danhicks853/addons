@@ -35,7 +35,12 @@ function ItemList:UpdateDisplay()
     local sourceGroups, stats = SLG.modules.ZoneManager:GetZoneItems(currentZone)
     
     -- Update progress text
-    MainWindow.progressText:SetText(string.format("%d/%d", stats.listAttuned, stats.listTotal))
+    local mode = SLGSettings.displayMode or SLG.DisplayModes.NOT_ATTUNED
+    if mode == "not_attuned" then
+        MainWindow.progressText:SetText(string.format("%d/%d", stats.zoneAttuned, stats.zoneEligible))
+    else
+        MainWindow.progressText:SetText(string.format("%d/%d", stats.listAttuned, stats.listTotal))
+    end
     
     -- Display items
     local totalHeight = 0

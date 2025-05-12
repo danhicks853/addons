@@ -240,8 +240,11 @@ function ZoneBrowser:ShowZoneItems(zoneName)
     -- Update the selected zone text
     self.selectedZoneText:SetText(zoneName)
     
-    -- Get items for the selected zone
+    -- Get items for the selected zone - force showAll mode
+    local originalMode = SLGSettings.displayMode
+    SLGSettings.displayMode = "all"
     local sourceGroups, stats = SLG.modules.ZoneManager:GetZoneItems(zoneName)
+    SLGSettings.displayMode = originalMode
     
     -- Update progress text
     self.selectedZoneProgress:SetText(string.format("%d/%d", stats.listAttuned, stats.listTotal))
