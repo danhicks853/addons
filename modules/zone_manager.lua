@@ -14,11 +14,11 @@ end
 function ZoneManager:RegisterEvents()
     local frame = CreateFrame("Frame")
     frame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
-    frame:RegisterEvent("ZONE_CHANGED")
-    frame:RegisterEvent("ZONE_CHANGED_INDOORS")
     
     frame:SetScript("OnEvent", function(_, event, ...)
-        self:OnZoneChange(event, ...)
+        if event == "ZONE_CHANGED_NEW_AREA" then
+            self:OnZoneChange(event, ...)
+        end
     end)
     
     self.frame = frame

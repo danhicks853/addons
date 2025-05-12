@@ -14,6 +14,15 @@ function ItemList:UpdateDisplay()
     local MainWindow = SLG.modules.MainWindow
     if not MainWindow or not MainWindow.frame:IsShown() then return end
     
+    -- Check if zone is implemented
+    local currentZone = GetRealZoneText()
+    if not SLG.ZoneItems[currentZone] then
+        print(string.format("|cffff0000%s has not yet been implemented in Synastria Loot Guide|r", currentZone))
+        MainWindow.content:SetHeight(0)
+        MainWindow.scrollBar:SetMinMaxValues(0, 0)
+        return
+    end
+    
     local SCROLLBAR_WIDTH = 20
     
     -- Force content frame width to match scroll frame
@@ -28,7 +37,6 @@ function ItemList:UpdateDisplay()
     end
     
     -- Update zone text
-    local currentZone = GetRealZoneText()
     MainWindow.zoneText:SetText(currentZone)
     
     -- Get items for current zone
@@ -37,9 +45,9 @@ function ItemList:UpdateDisplay()
     -- Update progress text
     local mode = SLGSettings.displayMode or SLG.DisplayModes.NOT_ATTUNED
     if mode == "not_attuned" then
-        MainWindow.progressText:SetText(string.format("%d/%d", stats.zoneAttuned, stats.zoneEligible))
+        MainWindow.progressText:SetText(stats.zoneAttuned and stats.zoneEligible and string.format("%d/%d", stats.zoneAttuned, stats.zoneEligible) or "-")
     else
-        MainWindow.progressText:SetText(string.format("%d/%d", stats.listAttuned, stats.listTotal))
+        MainWindow.progressText:SetText(stats.listAttuned and stats.listTotal and string.format("%d/%d", stats.listAttuned, stats.listTotal) or "-")
     end
     
     -- Display items
@@ -48,7 +56,7 @@ function ItemList:UpdateDisplay()
     local sourceHeight = SLG.UI.SOURCE_HEIGHT
     local itemHeight = SLG.UI.ITEM_HEIGHT
     
-    if stats.listTotal > 0 and stats.listAttuned == stats.listTotal then
+    if (stats.listTotal or 0) > 0 and (stats.listAttuned or 0) == (stats.listTotal or 0) then
         local messageFrame = SLG.modules.Frames:GetFrame()
         messageFrame:SetParent(MainWindow.content)
         messageFrame:SetPoint("TOP", MainWindow.content, "TOP", 0, -20)
