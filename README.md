@@ -1,6 +1,6 @@
 # Synastria Loot Guide
 
-A World of Warcraft addon that helps you track, browse, and manage attunable loot in your current zone and beyond. Designed for Classic/Classic+ servers, it provides a powerful in-game interface to view loot eligibility, attunement progress, and more.
+A World of Warcraft addon that helps you track, browse, and manage attunable loot in your current zone and beyond. Designed specifically for Synastria, it provides a powerful in-game interface to view loot eligibility, attunement progress, and more.
 
 ## Features
 
@@ -56,7 +56,7 @@ No external downloads required.
 
 ## Credits
 
-- Addon Author: (Update with your name)
+- Addon Author: Dromkal
 - Based on Ace3 and LibDataBroker frameworks.
 - Special thanks to the Synastria community and contributors.
 
