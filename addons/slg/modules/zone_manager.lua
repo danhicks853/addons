@@ -47,17 +47,21 @@ function ZoneManager:GetZoneItems(zoneName)
     end
     
     local stats = {
-        listTotal = 0,    -- Items in the currently displayed/filtered list
-        listAttuned = 0,  -- Attuned items in the currently displayed/filtered list
-        zoneEligible = 0, -- Total usable items in the whole zone
-        zoneAttuned = 0   -- Total usable AND attuned items in the whole zone
+        listTotal = 0,
+        listAttuned = 0,
+        zoneEligible = 0,
+        zoneAttuned = 0
     }
     
     local sourceGroups = {}
-    -- Get current difficulty info
+    local boss_iter = function()
+        local order = zoneData.__order
+        return pairs(zoneData)
+    end
+    
     local difficulty, instanceType = SLG.modules.DifficultyManager:GetInstanceInfo()
-    local diffKey -- Declare diffKey
-    if instanceType ~= "outdoor" then -- Only set diffKey for instances
+    local diffKey 
+    if instanceType ~= "outdoor" then 
         if difficulty == 1 then
             diffKey = "Normal (10)"
         elseif difficulty == 2 then
@@ -67,21 +71,14 @@ function ZoneManager:GetZoneItems(zoneName)
         elseif difficulty == 4 then
             diffKey = "Heroic (25)"
         else
-            -- Fallback for unknown instance difficulties, ensure it's not nil
             diffKey = "Normal (10)" 
         end
     else
-        diffKey = nil -- Explicitly nil for outdoor
+        diffKey = nil 
     end
     
-    -- Get player's faction
     local playerFaction = UnitFactionGroup("player")
-    -- local factionSuffix = playerFaction == "Alliance" and "_A" or "_H" -- Not currently used
     
-    -- Use __order if present for boss ordering
-    local bossKeys = zoneData.__order or {}
-    local ordered = #bossKeys > 0
-
     local mode = SLGSettings.displayMode or SLG.DisplayModes.NOT_ATTUNED
     
     local showAll = mode == "all"
@@ -97,23 +94,9 @@ function ZoneManager:GetZoneItems(zoneName)
         return false
     end
     
-    local function boss_iter()
-        if ordered then
-            local i = 0
-            return function()
-                i = i + 1
-                local k = bossKeys[i]
-                if k then return k, zoneData[k] end
-            end
-        else
-            return pairs(zoneData)
-        end
-    end
-    
     for sourceName, itemIds in boss_iter() do
-        -- Skip __order key
         if sourceName ~= "__order" then
-            local sourceDiff = sourceName:match("%(([^%)]+)%)") -- Check if the source name contains difficulty information
+            local sourceDiff = sourceName:match("%(([^%)]+)%)")
             local sourceItems = {}
             
             if instanceType == "outdoor" then
@@ -143,7 +126,7 @@ function ZoneManager:GetZoneItems(zoneName)
                         end
                     end
                 end
-            else -- Logic for instances (non-outdoor)
+            else 
                 if sourceDiff then
                     local sourceDifficulty = sourceDiff
                     if sourceDiff:match("25ManHeroic") then
@@ -154,7 +137,10 @@ function ZoneManager:GetZoneItems(zoneName)
                         sourceDifficulty = "Heroic (10)"
                     end
                     
-                    if sourceDifficulty == diffKey then
+                    sourceDifficulty = sourceDifficulty:gsub("_[AH]$", "")
+                    local currentDiffKey = diffKey:gsub("_[AH]$", "")
+                    
+                    if sourceDifficulty == currentDiffKey then
                         for _, itemId in ipairs(itemIds) do
                             local itemData = SLG.modules.ItemManager:GetItemData(itemId)
                             if itemData then
@@ -180,8 +166,7 @@ function ZoneManager:GetZoneItems(zoneName)
                             end
                         end
                     end
-                else -- No sourceDiff, this implies it's from a source like "Boss Name" without (Difficulty)
-                     -- Apply only if current instance difficulty is Normal (10), as per original implicit logic
+                else 
                     if diffKey == "Normal (10)" and itemIds then
                         for _, itemId in ipairs(itemIds) do
                             local itemData = SLG.modules.ItemManager:GetItemData(itemId)
@@ -209,20 +194,17 @@ function ZoneManager:GetZoneItems(zoneName)
                         end
                     end
                 end
-            end -- Closes 'if instanceType == "outdoor" / else'
+            end 
             
-            -- print("SLG_DEBUG: GetZoneItems - Processed sourceName: " .. tostring(sourceName) .. ". #sourceItems = " .. tostring(#sourceItems) .. ", current #sourceGroups = " .. tostring(#sourceGroups))
             if #sourceItems > 0 then
                 table.insert(sourceGroups, {
                     source = sourceName,
                     items = sourceItems
                 })
-                -- print("SLG_DEBUG: GetZoneItems - Added to sourceGroups. #sourceGroups = " .. tostring(#sourceGroups)) -- Optional Debug
             end
-        end -- Closes 'if sourceName ~= "__order"'
-    end -- Closes 'for sourceName, itemIds in boss_iter()'
+        end 
+    end 
     
-    -- print("SLG_DEBUG: GetZoneItems FINAL - Returning. #sourceGroups = " .. tostring(#sourceGroups) .. ", total items processed = " .. tostring(stats.total) .. ", total attuned = " .. tostring(stats.attuned))
     return sourceGroups, stats
 end
 
