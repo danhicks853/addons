@@ -5,30 +5,6 @@ SLG.version = GetAddOnMetadata(addonName, "Version")
 local addon = LibStub("AceAddon-3.0"):NewAddon(addonName, "AceConsole-3.0")
 SLG.addon = addon
 
--- Slash command for loot DB test
-SLASH_SLGLOOTDB1 = "/slglootdb"
-SlashCmdList["SLGLOOTDB"] = function(msg)
-    local itemId = tonumber(msg and msg:match("%d+"))
-    if not itemId then
-        return
-    end
-    local helpers = SLG.modules["Helpers"]
-    if helpers and helpers.TestLootDB then
-        helpers:TestLootDB(itemId)
-    else
-    end
-end
-
--- Slash command for DB Test Window
-SLASH_SLGDBTEST1 = "/slgdbtest"
-SlashCmdList["SLGDBTEST"] = function()
-    local dbtest = SLG.modules["DBTestWindow"]
-    if dbtest and dbtest.Toggle then
-        dbtest:Toggle()
-    else
-    end
-end
-
 -- Core tables
 SLG.modules = {}
 SLG.frames = {}
@@ -36,19 +12,15 @@ SLG.cache = {}
 
 -- Module registration
 function SLG:RegisterModule(name, module)
-
     self.modules[name] = module
     return module
 end
 
 -- Settings initialization
 function addon:InitializeSettings()
-
     if not SLGSettings then
-
         SLGSettings = CopyTable(SLG.defaults.profile)
     else
-
         -- Ensure minimap settings exist
         if not SLGSettings.minimap then
             SLGSettings.minimap = CopyTable(SLG.defaults.profile.minimap)
@@ -58,12 +30,9 @@ end
 
 -- Initialization function
 function addon:OnInitialize()
-
-    -- Load settings
     self:InitializeSettings()
     
     -- Register options
-
     local options = {
         name = "Synastria Loot Guide",
         handler = self,
@@ -134,20 +103,6 @@ function addon:OnInitialize()
                 order = 12,
                 width = "full"
             },
-            vendorExport = {
-                type = "execute",
-                name = "Export Vendor Data",
-                desc = "Export the collected vendor item data to the chat window.",
-                func = function()
-                    if SLG and SLG.modules and SLG.modules.Collector and SLG.modules.Collector.ExportVendorData then
-                        SLG.modules.Collector:ExportVendorData()
-                    else
-                        print("SLG Collector module not available to export vendor data.")
-                    end
-                end,
-                order = 13,
-                width = "full"
-            },
             about = {
                 type = "description",
                 name = "\nSynastria Loot Guide\n5/7/25\nWritten by Faithful Death Knight Dromkal",
@@ -165,23 +120,17 @@ function addon:OnInitialize()
     local AceConfigDialog = LibStub("AceConfigDialog-3.0")
     AceConfigDialog:AddToBlizOptions("slg", "Synastria Loot Guide")
     
-    -- Initialize modules
+    -- Initialize module
     for name, module in pairs(SLG.modules) do
         if module.Initialize then
             module:Initialize()
         end
-    end
-
-    -- Show main window if auto-open is enabled (after all modules are loaded)
-    if SLGSettings.autoOpen and SLG.modules.MainWindow and SLG.modules.MainWindow.Show then
-        SLG.modules.MainWindow:Show()
     end
     
     -- Register slash commands
     self:RegisterChatCommand("slg", function(input)
         self:HandleSlashCommand(input)
     end)
-    
 end
 
 -- Slash command handler

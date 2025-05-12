@@ -6,6 +6,7 @@ SLG:RegisterModule("ItemManager", ItemManager)
 
 -- Local cache for item data
 local itemCache = {}
+local attunementData = {}
 
 -- Initialize the module
 function ItemManager:Initialize()
@@ -15,6 +16,7 @@ end
 -- Clear the item cache
 function ItemManager:ClearCache()
     wipe(itemCache)
+    wipe(attunementData)
 end
 
 -- Get item data with caching
@@ -47,8 +49,11 @@ function ItemManager:GetItemData(itemId)
         link = link,
         quality = quality,
         itemType = itemType,
+        texture = texture,
+        classMask = select(12, GetItemInfo(itemId)),
+        classRequirements = self:GetClassRequirements(link),
         equipSlot = equipSlot,
-        texture = texture
+        isAttuned = self:IsAttuned(itemId)
     }
     itemCache[itemId] = itemData
     
@@ -91,9 +96,56 @@ function ItemManager:DetermineItemType(class, subclass, equipSlot)
     return "Misc"
 end
 
+-- Class requirement tooltip scanner
+local tooltipScanner = CreateFrame("GameTooltip", "SLG_ItemManagerTooltip", nil, "GameTooltipTemplate")
+
+function ItemManager:GetClassRequirements(link)
+    tooltipScanner:SetOwner(WorldFrame, "ANCHOR_NONE")
+    tooltipScanner:SetHyperlink(link)
+    
+    local classes = {}
+    for i=2, tooltipScanner:NumLines() do
+        local line = _G["SLG_ItemManagerTooltipTextLeft"..i]
+        local text = line:GetText() or ""
+        
+        if text:find("Classes: ") then
+            for class in text:gmatch("([^,]+)") do
+                class = class:gsub("Classes: ", ""):trim()
+                if class ~= "" then
+                    table.insert(classes, class)
+                end
+            end
+        end
+    end
+    tooltipScanner:Hide()
+    
+    return #classes > 0 and classes or nil
+end
+
 -- Check if player can use item type
-function ItemManager:CanUseItem(itemType)
+function ItemManager:CanUseItem(itemTypeOrData)
     local _, playerClass = UnitClass("player")
+    
+    -- Class requirements check
+    if type(itemTypeOrData) == "table" and itemTypeOrData.classRequirements then
+        local validClass = false
+        for _, reqClass in ipairs(itemTypeOrData.classRequirements) do
+            if reqClass == playerClass then
+                validClass = true
+                break
+            end
+        end
+        if not validClass then
+            return false
+        end
+    end
+    
+    -- Class mask check
+    if type(itemTypeOrData) == "table" and itemTypeOrData.classMask then
+        if not SynastriaCoreLib.PlayerIsClassMask(itemTypeOrData.classMask) then
+            return false
+        end
+    end
     
     -- Primary armor types for each class
     local primaryArmor = {
@@ -108,7 +160,6 @@ function ItemManager:CanUseItem(itemType)
         ["WARLOCK"] = SLG.ItemTypes.ARMOR.CLOTH,
         ["DRUID"] = SLG.ItemTypes.ARMOR.LEATHER
     }
-    
     -- Weapon types each class can use
     local weaponTypes = {
         ["WARRIOR"] = {SLG.ItemTypes.WEAPON.ONEHAND_SWORD, SLG.ItemTypes.WEAPON.TWOHAND_SWORD,
@@ -146,7 +197,16 @@ function ItemManager:CanUseItem(itemType)
                      SLG.ItemTypes.WEAPON.DAGGER, SLG.ItemTypes.WEAPON.FIST,
                      SLG.ItemTypes.WEAPON.POLEARM, SLG.ItemTypes.WEAPON.STAFF}
     }
-    
+    local itemType = itemTypeOrData
+    -- If a table is passed (itemData), check for classMask
+    if type(itemTypeOrData) == "table" then
+        if itemTypeOrData.classMask ~= nil then
+            if not SynastriaCoreLib.PlayerIsClassMask(itemTypeOrData.classMask) then
+                return false
+            end
+        end
+        itemType = itemTypeOrData.itemType or itemTypeOrData.type or itemTypeOrData[1] -- fallback
+    end
     -- Check armor type
     if itemType == SLG.ItemTypes.ARMOR.CLOTH or
        itemType == SLG.ItemTypes.ARMOR.LEATHER or
@@ -154,7 +214,6 @@ function ItemManager:CanUseItem(itemType)
        itemType == SLG.ItemTypes.ARMOR.PLATE then
         return itemType == primaryArmor[playerClass]
     end
-    
     -- Check weapon type
     if weaponTypes[playerClass] then
         for _, type in ipairs(weaponTypes[playerClass]) do
@@ -163,7 +222,6 @@ function ItemManager:CanUseItem(itemType)
             end
         end
     end
-    
     -- Check accessories (anyone can use)
     if itemType == SLG.ItemTypes.ACCESSORY.NECK or
        itemType == SLG.ItemTypes.ACCESSORY.RING or
@@ -171,7 +229,6 @@ function ItemManager:CanUseItem(itemType)
        itemType == SLG.ItemTypes.ACCESSORY.CLOAK then
         return true
     end
-    
     return false
 end
 
@@ -223,64 +280,10 @@ function ItemManager:GetInventoryItemLink(itemId)
     return nil
 end
 
-
--- Get player class (helper function)
-function ItemManager:GetPlayerClass()
-    local _, playerClass = UnitClass("player")
-    return playerClass
-end
-
--- Check if item is usable by the player's class based on tooltip
-function ItemManager:PlayerCanUseItemClassWise(itemId, playerClass)
-    if not itemId or not playerClass then return true end -- Default to true if info is missing
-
-    local tt = CreateFrame("GameTooltip", "SLGItemTooltip", UIParent, "GameTooltipTemplate")
-    tt:SetOwner(UIParent, "ANCHOR_NONE")
-    tt:SetHyperlink("item:" .. itemId)
-
-    local itemIsClassRestricted = false
-    local playerClassAllowed = false
-
-    for i = 1, tt:NumLines() do
-        local lineText = _G["SLGItemTooltipTextLeft" .. i]:GetText()
-        if lineText then
-            -- Convert to uppercase for consistent matching
-            local upperLineText = string.upper(lineText)
-            local upperPlayerClass = string.upper(playerClass)
-
-            if string.find(upperLineText, "^CLASSES: ") then
-                itemIsClassRestricted = true
-                local classesStr = string.sub(upperLineText, string.len("CLASSES: ") + 1)
-                local restrictedClasses = {}
-                for class in string.gmatch(classesStr, "[^,]+") do
-                    table.insert(restrictedClasses, string.upper(string.trim(class)))
-                end
-                for _, restrictedClass in ipairs(restrictedClasses) do
-                    if restrictedClass == upperPlayerClass then
-                        playerClassAllowed = true
-                        break
-                    end
-                end
-                break -- Found class restriction line, no need to check further lines for this
-            elseif string.find(upperLineText, "^CLASS: ") then
-                itemIsClassRestricted = true
-                local restrictedClass = string.upper(string.trim(string.sub(upperLineText, string.len("CLASS: ") + 1)))
-                if restrictedClass == upperPlayerClass then
-                    playerClassAllowed = true
-                end
-                break -- Found class restriction line
-            end
-        end
-    end
-
-    tt:Hide()
-
-    if not itemIsClassRestricted then
-        return true -- Not restricted, so usable
-    end
-
-    return playerClassAllowed -- Restricted, so depends on if player class is allowed
+-- Check if item is attuned
+function ItemManager:IsAttuned(itemId)
+    return attunementData[itemId] or false
 end
 
 -- Return the module
-return ItemManager 
+return ItemManager

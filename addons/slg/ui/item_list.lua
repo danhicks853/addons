@@ -1,6 +1,5 @@
 local addonName, SLG = ...
 
-
 -- Create the module
 local ItemList = {}
 SLG:RegisterModule("ItemList", ItemList)
@@ -12,12 +11,10 @@ end
 
 -- Update the item list display
 function ItemList:UpdateDisplay()
-
     local MainWindow = SLG.modules.MainWindow
     if not MainWindow or not MainWindow.frame:IsShown() then return end
     
-    local currentZone = GetRealZoneText()
-
+    local SCROLLBAR_WIDTH = 20
     
     -- Force content frame width to match scroll frame
     if MainWindow.scrollFrame and MainWindow.content then
@@ -36,10 +33,9 @@ function ItemList:UpdateDisplay()
     
     -- Get items for current zone
     local sourceGroups, stats = SLG.modules.ZoneManager:GetZoneItems(currentZone)
-
     
     -- Update progress text
-    MainWindow.progressText:SetText(string.format("%d/%d", stats.attuned, stats.total))
+    MainWindow.progressText:SetText(string.format("%d/%d", stats.listAttuned, stats.listTotal))
     
     -- Display items
     local totalHeight = 0
@@ -47,7 +43,7 @@ function ItemList:UpdateDisplay()
     local sourceHeight = SLG.UI.SOURCE_HEIGHT
     local itemHeight = SLG.UI.ITEM_HEIGHT
     
-    if stats.total > 0 and stats.attuned == stats.total then
+    if stats.listTotal > 0 and stats.listAttuned == stats.listTotal then
         local messageFrame = SLG.modules.Frames:GetFrame()
         messageFrame:SetParent(MainWindow.content)
         messageFrame:SetPoint("TOP", MainWindow.content, "TOP", 0, -20)
@@ -104,14 +100,14 @@ function ItemList:UpdateDisplay()
         sourceFrame.nameText:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
         sourceFrame.statusText:Hide()
 
-        -- Make the sourceFrame clickable
-        sourceFrame:SetScript("OnMouseUp", function(self, button)
-            if button == "LeftButton" then
-                local npcName = sourceGroup.source
-                -- Extract base NPC name if difficulty is present (e.g., "Boss Name (Heroic)")
-                npcName = npcName:match("([^%(]+)") or npcName
-                npcName = npcName:gsub("^%s*(.-)%s*$", "%1") -- Trim whitespace
-                SendChatMessage(".findnpc " .. npcName)
+        -- Make the source frame clickable to find NPC
+        sourceFrame:SetScript("OnMouseDown", function(self)
+            -- Check if it's a left click before proceeding
+            if arg1 == "LeftButton" then
+                local sourceName = self.nameText:GetText() -- Get text from the nameText child
+                if sourceName and sourceName ~= "" then
+                    SendChatMessage(".findnpc " .. sourceName, "GUILD")
+                end
             end
         end)
         
@@ -136,155 +132,81 @@ function ItemList:UpdateDisplay()
         -- Only show items if not collapsed
         if not (SLG.collapsedSources and SLG.collapsedSources[sourceGroup.source]) then
             -- Create frames for items
-            for idx, item in ipairs(sourceGroup.items) do
-                local itemFrame = SLG.modules.Frames:GetFrame(false)
-                itemFrame:SetParent(MainWindow.content)
-                itemFrame.itemID = item.id
-                itemFrame:EnableMouse(true)
-                itemFrame:SetPoint("TOPLEFT", MainWindow.content, "TOPLEFT", 8, -totalHeight)
-                itemFrame:SetPoint("TOPRIGHT", MainWindow.content, "TOPRIGHT", -10, -totalHeight)
-                itemFrame:SetHeight(itemHeight)
-                
-                -- Zebra shading for item frames
-                if idx % 2 == 0 then
-                    itemFrame.bg:SetTexture(0.13, 0.13, 0.13, 0.7)
-                else
-                    itemFrame.bg:SetTexture(0.09, 0.09, 0.09, 0.7)
+            if sourceGroup and sourceGroup.items and type(sourceGroup.items) == "table" then
+                local filteredItems = {}
+                for _, item in ipairs(sourceGroup.items) do
+                    if SLG.modules.ItemManager:CanUseItem(item) then
+                        table.insert(filteredItems, item)
+                    end
                 end
-                
-                -- Explicitly set width to fill available space
-                local parentWidth = itemFrame:GetParent():GetWidth() or 0
-                local leftPad, rightPad = 8, 10
-                itemFrame:SetWidth(parentWidth - leftPad - rightPad)
-                itemFrame:ClearAllPoints()
-                itemFrame:SetPoint("TOPLEFT", MainWindow.content, "TOPLEFT", leftPad, -totalHeight)
-                itemFrame:SetPoint("TOPRIGHT", MainWindow.content, "TOPRIGHT", -rightPad, -totalHeight)
-
-                -- Set statusText to a fixed width
-                local statusTextWidth = 100 -- Increased width
-                itemFrame.statusText:SetWidth(statusTextWidth)
-                itemFrame.statusText:SetWordWrap(false) -- Disable word wrap
-                itemFrame.statusText:SetNonSpaceWrap(false) -- Disable non-space wrap
-                itemFrame.statusText:ClearAllPoints()
-                itemFrame.statusText:SetPoint("RIGHT", itemFrame, "RIGHT", -5, 0)
-                itemFrame.statusText:SetJustifyH("RIGHT")
-
-                -- Set nameText to fill remaining space
-                local namePadding = 10
-                local nameWidth = math.max(50, itemFrame:GetWidth() - statusTextWidth - namePadding)
-                itemFrame.nameText:SetWidth(nameWidth)
-                itemFrame.nameText:ClearAllPoints()
-                itemFrame.nameText:SetPoint("LEFT", itemFrame, "LEFT", 5, 0)
-                itemFrame.nameText:SetPoint("RIGHT", itemFrame.statusText, "LEFT", -5, 0)
-                itemFrame.nameText:SetJustifyH("LEFT")
-                itemFrame.nameText:SetWordWrap(false)
-                itemFrame.nameText:SetNonSpaceWrap(false)
-                
-
-                
-                -- Set nameText to item name
-                itemFrame.nameText:SetText(item.name and item.name ~= "" and item.name or ("Item %d"):format(item.id))
-
-                -- Get attunement status
-                local itemData = SLG.modules.ItemManager:GetItemData(item.id)
-                local itemType = itemData and itemData.itemType or "" -- Default to empty string if no data
-                local statusText, statusColor = SLG.modules.Attunement:GetStatusText(item.id, itemType)
-
-                if statusText == itemType then -- Only add slot info if not attuned/looted
-                    local typeText = itemType
-                    local slotText = ""
-
-                    -- Define item types that should not have slot text appended
-                    local noSlotTextTypes = {
-                        SLG.ItemTypes.WEAPON.ONEHAND_SWORD, SLG.ItemTypes.WEAPON.TWOHAND_SWORD,
-                        SLG.ItemTypes.WEAPON.ONEHAND_AXE, SLG.ItemTypes.WEAPON.TWOHAND_AXE,
-                        SLG.ItemTypes.WEAPON.ONEHAND_MACE, SLG.ItemTypes.WEAPON.TWOHAND_MACE,
-                        SLG.ItemTypes.WEAPON.DAGGER, SLG.ItemTypes.WEAPON.FIST,
-                        SLG.ItemTypes.WEAPON.POLEARM, SLG.ItemTypes.WEAPON.STAFF,
-                        SLG.ItemTypes.WEAPON.BOW, SLG.ItemTypes.WEAPON.CROSSBOW,
-                        SLG.ItemTypes.WEAPON.GUN, SLG.ItemTypes.WEAPON.WAND,
-                        SLG.ItemTypes.WEAPON.SHIELD, -- Shields are listed under WEAPON in constants
-                        SLG.ItemTypes.ACCESSORY.NECK,
-                        SLG.ItemTypes.ACCESSORY.TRINKET,
-                        SLG.ItemTypes.ACCESSORY.CLOAK
-                        -- Rings are often "Finger 1", "Finger 2", so they might still need slot info.
-                        -- Let's exclude rings from this list for now.
-                    }
-
-                    local shouldAddSlotText = true
-                    for _, noSlotType in ipairs(noSlotTextTypes) do
-                        if itemType == noSlotType then
-                            shouldAddSlotText = false
-                            break
-                        end
-                    end
-
-                    if shouldAddSlotText and item.equipSlot and item.equipSlot ~= "" then
-                        local slotNames = {
-                            INVTYPE_HEAD = "Head",
-                            INVTYPE_NECK = "Neck",
-                            INVTYPE_SHOULDER = "Shoulder",
-                            INVTYPE_BODY = "Shirt",
-                            INVTYPE_CHEST = "Chest",
-                            INVTYPE_ROBE = "Chest",
-                            INVTYPE_WAIST = "Waist",
-                            INVTYPE_LEGS = "Legs",
-                            INVTYPE_FEET = "Feet",
-                            INVTYPE_WRIST = "Wrist",
-                            INVTYPE_HAND = "Hands",
-                            INVTYPE_FINGER = "Finger", -- Kept for rings
-                            INVTYPE_TRINKET = "Trinket",
-                            INVTYPE_CLOAK = "Back",
-                            INVTYPE_TABARD = "Tabard",
-                            INVTYPE_HOLDABLE = "Off-hand",
-                            INVTYPE_SHIELD = "Shield",
-                            INVTYPE_RANGED = "Ranged",
-                            INVTYPE_RANGEDRIGHT = "Ranged",
-                            INVTYPE_WEAPONMAINHAND = "Main Hand",
-                            INVTYPE_WEAPONOFFHAND = "Off Hand",
-                            INVTYPE_2HWEAPON = "Two-Hand",
-                            INVTYPE_WEAPON = "One-Hand",
-                            INVTYPE_THROWN = "Thrown",
-                            INVTYPE_RELIC = "Relic",
-                        }
-                        local slotName = slotNames[item.equipSlot]
-                        if slotName then
-                            slotText = slotName
-                        end
-                    end
-
-                    if slotText ~= "" then
-                        itemFrame.statusText:SetText(string.format("%s %s", typeText, slotText))
+                for idx, item in ipairs(filteredItems) do
+                    local itemFrame = SLG.modules.Frames:GetFrame(false)
+                    itemFrame:SetParent(MainWindow.content)
+                    itemFrame:SetPoint("TOPLEFT", MainWindow.content, "TOPLEFT", 8, -totalHeight)
+                    itemFrame:SetPoint("TOPRIGHT", MainWindow.content, "TOPRIGHT", -10, -totalHeight)
+                    itemFrame:SetHeight(itemHeight)
+                    
+                    -- Zebra shading for item frames
+                    if idx % 2 == 0 then
+                        itemFrame.bg:SetTexture(0.13, 0.13, 0.13, 0.7)
                     else
-                        itemFrame.statusText:SetText(typeText)
+                        itemFrame.bg:SetTexture(0.09, 0.09, 0.09, 0.7)
                     end
-                else
+                    
+                    -- Explicitly set width to fill available space
+                    local parentWidth = itemFrame:GetParent():GetWidth() or 0
+                    local leftPad, rightPad = 8, 10
+                    itemFrame:SetWidth(parentWidth - leftPad - rightPad - SCROLLBAR_WIDTH)
+                    itemFrame:ClearAllPoints()
+                    itemFrame:SetPoint("TOPLEFT", MainWindow.content, "TOPLEFT", leftPad, -totalHeight)
+                    itemFrame:SetPoint("TOPRIGHT", MainWindow.content, "TOPRIGHT", -(rightPad + SCROLLBAR_WIDTH), -totalHeight)
+
+                    -- Set statusText to a fixed width
+                    local statusTextWidth = 60
+                    itemFrame.statusText:SetWidth(statusTextWidth)
+                    itemFrame.statusText:ClearAllPoints()
+                    itemFrame.statusText:SetPoint("RIGHT", itemFrame, "RIGHT", -5, 0)
+                    itemFrame.statusText:SetJustifyH("RIGHT")
+
+                    -- Set nameText to fill remaining space
+                    local namePadding = 10
+                    local nameWidth = math.max(50, itemFrame:GetWidth() - statusTextWidth - namePadding)
+                    itemFrame.nameText:SetWidth(nameWidth)
+                    itemFrame.nameText:ClearAllPoints()
+                    itemFrame.nameText:SetPoint("LEFT", itemFrame, "LEFT", 5, 0)
+                    itemFrame.nameText:SetPoint("RIGHT", itemFrame.statusText, "LEFT", -5, 0)
+                    itemFrame.nameText:SetJustifyH("LEFT")
+                    itemFrame.nameText:SetWordWrap(false)
+                    itemFrame.nameText:SetNonSpaceWrap(false)
+                    
+                    itemFrame.nameText:SetText(item.name and item.name ~= "" and item.name or ("Item %d"):format(item.id))
+                    
+                    -- Get status text and color
+                    local statusText, statusColor = SLG.modules.Attunement:GetStatusText(item.id, nil) -- Pass nil to omit itemType from status
                     itemFrame.statusText:SetText(statusText)
-                    if statusColor then
-                        itemFrame.statusText:SetTextColor(statusColor.r, statusColor.g, statusColor.b)
-                    else
-                        itemFrame.statusText:SetTextColor(SLG.Colors.NOT_ATTUNED.r, SLG.Colors.NOT_ATTUNED.g, SLG.Colors.NOT_ATTUNED.b)
+                    itemFrame.statusText:SetTextColor(statusColor.r, statusColor.g, statusColor.b)
+                    
+                    itemFrame.itemID = item.id
+                    
+                    -- Set up tooltip
+                    itemFrame:SetScript("OnEnter", function(self)
+                        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                        GameTooltip:SetHyperlink("item:" .. self.itemID)
+                        GameTooltip:AddLine("Source: " .. sourceGroup.source, 1, 1, 1)
+                        GameTooltip:Show()
+                    end)
+                    itemFrame:SetScript("OnLeave", function(self)
+                        GameTooltip:Hide()
+                    end)
+                    
+                    -- Ensure items table exists before inserting
+                    if not sourceFrame.items then
+                        sourceFrame.items = {}
                     end
+                    table.insert(sourceFrame.items, itemFrame)
+                    itemFrame:Show()
+                    totalHeight = totalHeight + itemHeight + padding
                 end
-                
-                itemFrame:SetScript("OnEnter", function(self)
-
-                    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-                    GameTooltip:SetHyperlink("item:" .. self.itemID)
-                    GameTooltip:AddLine("Source: " .. sourceGroup.source, 1, 1, 1)
-                    GameTooltip:Show()
-                end)
-                itemFrame:SetScript("OnLeave", function(self)
-                    GameTooltip:Hide()
-                end)
-                
-                -- Ensure items table exists before inserting
-                if not sourceFrame.items then
-                    sourceFrame.items = {}
-                end
-                table.insert(sourceFrame.items, itemFrame)
-                itemFrame:Show()
-                totalHeight = totalHeight + itemHeight + padding
             end
         end
         totalHeight = totalHeight + padding * 2

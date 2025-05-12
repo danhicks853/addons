@@ -1,19 +1,5 @@
 local addonName, SLG = ...
 
--- WoW 3.3.5 compatible delayed call (replaces C_Timer.After)
-local function SLG_DelayedCall(delay, func)
-    local frame = CreateFrame("Frame")
-    local elapsed = 0
-    frame:SetScript("OnUpdate", function(self, e)
-        elapsed = elapsed + e
-        if elapsed >= delay then
-            self:SetScript("OnUpdate", nil)
-            func()
-            frame:Hide()
-        end
-    end)
-end
-
 -- Create the module
 local Attunement = {}
 SLG:RegisterModule("Attunement", Attunement)
@@ -32,7 +18,7 @@ function Attunement:Initialize()
         end
     end
     if not SCL then
-        SLG_DelayedCall(1, function()
+        C_Timer.After(1, function()
             self:Initialize()
         end)
         return
@@ -46,7 +32,7 @@ function Attunement:Initialize()
         if addOnName == "SynastriaCoreLib" or addOnName == "SynastriaCoreLib-1.0" then
             frame:UnregisterEvent("ADDON_LOADED")
             -- Wait a short time for SCL to fully initialize
-            SLG_DelayedCall(1, function()
+            C_Timer.After(1, function()
                 if not self.SCL.GetAttuneProgress then
                     self:Initialize()
                 else
@@ -85,7 +71,7 @@ end
 -- Initialize callbacks once SCL is ready
 function Attunement:InitializeCallbacks()
     if not self.SCL or not self.SCL.GetAttuneProgress then
-        SLG_DelayedCall(1, function()
+        C_Timer.After(1, function()
             self:InitializeCallbacks()
         end)
         return

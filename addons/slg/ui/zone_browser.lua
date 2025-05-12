@@ -324,51 +324,49 @@ function ZoneBrowser:ShowZoneItems(zoneName)
         totalHeight = totalHeight + sourceHeight + padding
         
         -- Create frames for items
-        for idx, item in ipairs(sourceGroup.items) do
-            local itemFrame = SLG.modules.Frames:GetFrame(false)
-            itemFrame:SetParent(self.itemContent)
-            itemFrame:SetPoint("TOPLEFT", self.itemContent, "TOPLEFT", 8, -totalHeight)
-            itemFrame:SetPoint("TOPRIGHT", self.itemContent, "TOPRIGHT", -28, -totalHeight)
-            itemFrame:SetHeight(itemHeight)
-            itemFrame:EnableMouse(true)
-            
-            if idx % 2 == 0 then
-                itemFrame.bg:SetTexture(0.13, 0.13, 0.13, 0.7)
-            else
-                itemFrame.bg:SetTexture(0.09, 0.09, 0.09, 0.7)
-            end
-            
-            itemFrame.nameText:SetText(item.name and item.name ~= "" and item.name or ("Item %d"):format(item.id))
-            
-            -- Get status text and color
-            local statusText, statusColor = SLG.modules.Attunement:GetStatusText(item.id, item.itemType)
-            itemFrame.statusText:SetText(statusText)
-            itemFrame.statusText:SetTextColor(statusColor.r, statusColor.g, statusColor.b)
-            
-            itemFrame.itemID = item.id
-            
-            -- Set up tooltip
-            itemFrame:SetScript("OnEnter", function(self)
-                if not self.itemID then return end
-                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-                local itemLink = select(2, GetItemInfo(self.itemID))
-                if itemLink then
-                    GameTooltip:SetHyperlink(itemLink)
+        if sourceGroup and sourceGroup.items and type(sourceGroup.items) == "table" then
+            for idx, item in ipairs(sourceGroup.items) do
+                local itemFrame = SLG.modules.Frames:GetFrame(false)
+                itemFrame:SetParent(self.itemContent)
+                itemFrame:SetPoint("TOPLEFT", self.itemContent, "TOPLEFT", 8, -totalHeight)
+                itemFrame:SetPoint("TOPRIGHT", self.itemContent, "TOPRIGHT", -28, -totalHeight)
+                itemFrame:SetHeight(itemHeight)
+                itemFrame:EnableMouse(true)
+                
+                if idx % 2 == 0 then
+                    itemFrame.bg:SetTexture(0.13, 0.13, 0.13, 0.7)
+                else
+                    itemFrame.bg:SetTexture(0.09, 0.09, 0.09, 0.7)
+                end
+                
+                itemFrame.nameText:SetText(item.name and item.name ~= "" and item.name or ("Item %d"):format(item.id))
+                
+                -- Get status text and color
+                local statusText, statusColor = SLG.modules.Attunement:GetStatusText(item.id, nil) -- Pass nil to omit itemType from status
+                itemFrame.statusText:SetText(statusText)
+                itemFrame.statusText:SetTextColor(statusColor.r, statusColor.g, statusColor.b)
+                
+                itemFrame.itemID = item.id
+                
+                -- Set up tooltip
+                itemFrame:SetScript("OnEnter", function(self)
+                    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                    GameTooltip:SetHyperlink("item:" .. self.itemID)
                     GameTooltip:AddLine("Source: " .. sourceGroup.source, 1, 1, 1)
                     GameTooltip:Show()
+                end)
+                itemFrame:SetScript("OnLeave", function(self)
+                    GameTooltip:Hide()
+                end)
+                
+                -- Ensure items table exists before inserting
+                if not sourceFrame.items then
+                    sourceFrame.items = {}
                 end
-            end)
-            itemFrame:SetScript("OnLeave", function(self)
-                GameTooltip:Hide()
-            end)
-            
-            -- Ensure items table exists before inserting
-            if not sourceFrame.items then
-                sourceFrame.items = {}
+                table.insert(sourceFrame.items, itemFrame)
+                itemFrame:Show()
+                totalHeight = totalHeight + itemHeight + padding
             end
-            table.insert(sourceFrame.items, itemFrame)
-            itemFrame:Show()
-            totalHeight = totalHeight + itemHeight + padding
         end
         
         totalHeight = totalHeight + padding * 2

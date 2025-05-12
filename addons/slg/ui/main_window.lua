@@ -1,6 +1,5 @@
 local addonName, SLG = ...
 
-
 -- Create the module
 local MainWindow = {}
 SLG:RegisterModule("MainWindow", MainWindow)
@@ -12,7 +11,10 @@ function MainWindow:Initialize()
     -- Initialize LDB
     self:InitializeLDB()
     
-
+    -- Show window if auto-open is enabled
+    if SLGSettings.autoOpen then
+        self:Show()
+    end
 end
 
 -- Create the main window
@@ -135,7 +137,6 @@ function MainWindow:CreateMainWindow()
     
     resizeButton:SetScript("OnMouseDown", function(self, button)
         if button == "LeftButton" then
-            frame.isResizing = true -- Set resizing flag
             self:SetButtonState("PUSHED", true)
             
             -- Create a temporary frame to handle the resize
@@ -153,13 +154,8 @@ function MainWindow:CreateMainWindow()
                 -- Set the new size
                 frame:SetSize(newWidth, newHeight)
                 
-                -- Only update scroll frame size during drag for performance
-                if frame.scrollFrame then
-                    local scrollWidth = newWidth - 24
-                    local scrollHeight = newHeight - titleBg:GetHeight() - 55
-                    frame.scrollFrame:SetSize(scrollWidth, scrollHeight)
-                    frame.content:SetWidth(scrollWidth) -- Keep content width in sync
-                end
+                -- Update content layout
+                UpdateContentLayout()
             end)
             
             -- Store the resize frame for cleanup
@@ -174,7 +170,6 @@ function MainWindow:CreateMainWindow()
                 self.resizeFrame:SetScript("OnUpdate", nil)
                 self.resizeFrame = nil
             end
-            frame.isResizing = false -- Clear resizing flag
             -- Final layout update
             UpdateContentLayout()
         end
@@ -200,8 +195,6 @@ function MainWindow:CreateMainWindow()
 
     -- Ensure item list updates on resize
     frame:SetScript("OnSizeChanged", function()
-        if frame.isResizing then return end -- Don't update item list during drag resize
-
         local frameWidth = frame:GetWidth()
         local frameHeight = frame:GetHeight()
         local newScrollWidth = frameWidth - 24
@@ -266,12 +259,4 @@ function MainWindow:Toggle()
 end
 
 -- Return the module
-function MainWindow:Show()
-
-    self.frame:Show()
-    if SLG.modules.ItemList and SLG.modules.ItemList.UpdateDisplay then
-        SLG.modules.ItemList:UpdateDisplay()
-    end
-end
-
 return MainWindow 

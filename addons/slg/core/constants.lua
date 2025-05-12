@@ -129,7 +129,7 @@ SLG.UI = {
     TITLE_HEIGHT = 56,
     SCROLL_WIDTH = 16,
     MIN_WINDOW_WIDTH = 300,
-    DEFAULT_WINDOW_HEIGHT = 400
+    DEFAULT_WINDOW_HEIGHT = 300
 }
 
 -- Colors
@@ -233,4 +233,4 @@ SLG.ZoneCategories = {
             "Silvermoon City"
         }
     }
-}
+} 

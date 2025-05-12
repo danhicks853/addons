@@ -90,31 +90,9 @@ f:SetScript("OnEvent", function(self, event, ...)
     end
 end)
 
-local Collector = {}
-SLG:RegisterModule("Collector", Collector)
-function Collector:Initialize()
+SLG_Collector = {}
+function SLG_Collector:Init()
     -- nothing needed, frame auto-registers
-end
-
-function Collector:ExportVendorData()
-    if not SLG_CollectedLoot or not next(SLG_CollectedLoot) then
-        print("No vendor data to export.")
-        return
-    end
-    local out = ""
-    for zone, vendors_in_zone in pairs(SLG_CollectedLoot) do
-        for vendor_name, sources in pairs(vendors_in_zone) do
-            if sources["Vendor"] and #sources["Vendor"] > 0 then
-                local item_ids_str = table.concat(sources["Vendor"], ", ")
-                out = out .. zone .. " > " .. vendor_name .. " > " .. item_ids_str .. "\n"
-            end
-        end
-    end
-    if out == "" then
-        print("No vendor data to export.")
-    else
-        print("|cffffd700SLG Vendor Export:|r\n" .. out)
-    end
 end
 
 local function TableToLua(tbl, indent)
@@ -142,11 +120,26 @@ SlashCmdList["SLGEXPORTLOOT"] = function()
     print("\124cffffd700SLG Collected Loot:\124r\n" .. out)
 end
 
-SLASH_SLGEXPORTVENDORS1 = "/slgexportvendors"
-SlashCmdList["SLGEXPORTVENDORS"] = function()
-    if SLG and SLG.modules and SLG.modules.Collector and SLG.modules.Collector.ExportVendorData then
-        SLG.modules.Collector:ExportVendorData()
+_G.ExportVendorsOnly = function()
+    if not SLG_CollectedLoot or not next(SLG_CollectedLoot) then
+        print("No vendor data to export.")
+        return
+    end
+    local out = ""
+    for zone, vendors in pairs(SLG_CollectedLoot) do
+        for vendor, sources in pairs(vendors) do
+            if sources["Vendor"] and #sources["Vendor"] > 0 then
+                local ids = table.concat(sources["Vendor"], ", ")
+                out = out .. zone .. " > " .. vendor .. " > " .. ids .. "\n"
+            end
+        end
+    end
+    if out == "" then
+        print("No vendor data to export.")
     else
-        print("SLG Collector module not available to export vendor data.")
+        print("|cffffd700SLG Vendor Export:|r\n" .. out)
     end
 end
+
+SLASH_SLGEXPORTVENDORS1 = "/slgexportvendors"
+SlashCmdList["SLGEXPORTVENDORS"] = ExportVendorsOnly 
