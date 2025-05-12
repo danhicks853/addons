@@ -185,7 +185,7 @@ function ZoneManager:GetZoneItems(zoneName)
                     end
                 else -- No sourceDiff, this implies it's from a source like "Boss Name" without (Difficulty)
                      -- Apply only if current instance difficulty is Normal (10), as per original implicit logic
-                    if diffKey == "Normal (10)" then
+                    if diffKey == "Normal (10)" and itemIds then
                         for _, itemId in ipairs(itemIds) do
                             local itemData = SLG.modules.ItemManager:GetItemData(itemId)
                             if itemData then

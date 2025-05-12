@@ -244,7 +244,7 @@ function ZoneBrowser:ShowZoneItems(zoneName)
     local sourceGroups, stats = SLG.modules.ZoneManager:GetZoneItems(zoneName)
     
     -- Update progress text
-    self.selectedZoneProgress:SetText(string.format("%d/%d", stats.attuned, stats.total))
+    self.selectedZoneProgress:SetText(string.format("%d/%d", stats.listAttuned, stats.listTotal))
     
     -- Clear existing items
     for _, child in ipairs({self.itemContent:GetChildren()}) do
@@ -257,7 +257,7 @@ function ZoneBrowser:ShowZoneItems(zoneName)
     local sourceHeight = SLG.UI.SOURCE_HEIGHT
     local itemHeight = SLG.UI.ITEM_HEIGHT
     
-    if stats.total > 0 and stats.attuned == stats.total then
+    if stats.listTotal > 0 and stats.listAttuned == stats.listTotal then
         local messageFrame = SLG.modules.Frames:GetFrame()
         messageFrame:SetParent(self.itemContent)
         messageFrame:SetPoint("TOP", self.itemContent, "TOP", 0, -20)
