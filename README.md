@@ -15,7 +15,7 @@ A World of Warcraft addon that helps you track, browse, and manage attunable loo
 
 ## Installation
 
-1. Download or clone this repository.
+1. Download the latest release on the right side of this page.
 2. Copy the entire `slg` folder into your WoW `Interface/AddOns` directory.
 3. Launch World of Warcraft and enable "Synastria Loot Guide" in the AddOns menu.
 
