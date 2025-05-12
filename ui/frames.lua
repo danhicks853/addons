@@ -89,11 +89,13 @@ function Frames:ResetFrame(frame, isSource)
                 local parent = self:GetParent()
                 if parent.items and parent.nameText then
                     local sourceName = parent.nameText:GetText()
-                    -- Toggle collapsed state
-                    SLG.collapsedSources[sourceName] = not SLG.collapsedSources[sourceName]
-                    -- Rebuild the item list to reflect new state
-                    if SLG.modules.ItemList then
-                        SLG.modules.ItemList:UpdateDisplay()
+                    if sourceName then
+                        -- Toggle collapsed state
+                        SLG.collapsedSources[sourceName] = not SLG.collapsedSources[sourceName]
+                        -- Rebuild the item list to reflect new state
+                        if SLG.modules.ItemList then
+                            SLG.modules.ItemList:UpdateDisplay()
+                        end
                     end
                 end
             end)
@@ -165,11 +167,13 @@ function Frames:CreateFrame(isSource)
             local parent = self:GetParent()
             if parent.items and parent.nameText then
                 local sourceName = parent.nameText:GetText()
-                -- Toggle collapsed state
-                SLG.collapsedSources[sourceName] = not SLG.collapsedSources[sourceName]
-                -- Rebuild the item list to reflect new state
-                if SLG.modules.ItemList then
-                    SLG.modules.ItemList:UpdateDisplay()
+                if sourceName then
+                    -- Toggle collapsed state
+                    SLG.collapsedSources[sourceName] = not SLG.collapsedSources[sourceName]
+                    -- Rebuild the item list to reflect new state
+                    if SLG.modules.ItemList then
+                        SLG.modules.ItemList:UpdateDisplay()
+                    end
                 end
             end
         end)
