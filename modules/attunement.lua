@@ -18,8 +18,13 @@ function Attunement:Initialize()
         end
     end
     if not SCL then
-        C_Timer.After(1, function()
-            self:Initialize()
+        local waitFrame = CreateFrame("Frame")
+        waitFrame:SetScript("OnUpdate", function(self, elapsed)
+            self.elapsed = (self.elapsed or 0) + elapsed
+            if self.elapsed >= 1 then
+                self:SetScript("OnUpdate", nil)
+                Attunement:Initialize()
+            end
         end)
         return
     end
@@ -32,11 +37,16 @@ function Attunement:Initialize()
         if addOnName == "SynastriaCoreLib" or addOnName == "SynastriaCoreLib-1.0" then
             frame:UnregisterEvent("ADDON_LOADED")
             -- Wait a short time for SCL to fully initialize
-            C_Timer.After(1, function()
-                if not self.SCL.GetAttuneProgress then
-                    self:Initialize()
-                else
-                    self:InitializeCallbacks()
+            local waitFrame = CreateFrame("Frame")
+            waitFrame:SetScript("OnUpdate", function(self, elapsed)
+                self.elapsed = (self.elapsed or 0) + elapsed
+                if self.elapsed >= 1 then
+                    self:SetScript("OnUpdate", nil)
+                    if not Attunement.SCL.GetAttuneProgress then
+                        Attunement:Initialize()
+                    else
+                        Attunement:InitializeCallbacks()
+                    end
                 end
             end)
         end
@@ -71,8 +81,13 @@ end
 -- Initialize callbacks once SCL is ready
 function Attunement:InitializeCallbacks()
     if not self.SCL or not self.SCL.GetAttuneProgress then
-        C_Timer.After(1, function()
-            self:InitializeCallbacks()
+        local waitFrame = CreateFrame("Frame")
+        waitFrame:SetScript("OnUpdate", function(self, elapsed)
+            self.elapsed = (self.elapsed or 0) + elapsed
+            if self.elapsed >= 1 then
+                self:SetScript("OnUpdate", nil)
+                Attunement:InitializeCallbacks()
+            end
         end)
         return
     end
@@ -133,7 +148,14 @@ end
 function Attunement:IsAttuned(itemId)
     local scl = self.SCL or _G['SynastriaCoreLib']
     if not scl or not scl.IsAttuned then
-        self:Initialize()
+        local waitFrame = CreateFrame("Frame")
+        waitFrame:SetScript("OnUpdate", function(self, elapsed)
+            self.elapsed = (self.elapsed or 0) + elapsed
+            if self.elapsed >= 1 then
+                self:SetScript("OnUpdate", nil)
+                return Attunement:IsAttuned(itemId)
+            end
+        end)
         return false
     end
     local result = scl.IsAttuned(itemId)
@@ -144,7 +166,14 @@ end
 function Attunement:GetAttuneProgress(itemId)
     local scl = self.SCL or _G['SynastriaCoreLib']
     if not scl or not scl.GetAttuneProgress then
-        self:Initialize()
+        local waitFrame = CreateFrame("Frame")
+        waitFrame:SetScript("OnUpdate", function(self, elapsed)
+            self.elapsed = (self.elapsed or 0) + elapsed
+            if self.elapsed >= 1 then
+                self:SetScript("OnUpdate", nil)
+                return Attunement:GetAttuneProgress(itemId)
+            end
+        end)
         return 0
     end
     local progress = scl.GetAttuneProgress(itemId)
