@@ -7,7 +7,32 @@ SLG:RegisterModule("Attunement", Attunement)
 -- Cache for attunement status
 local attunementCache = {}
 local isUpdating = false
-local updateTimer = nil
+
+-- Shared timer frame
+local sharedTimerFrame = CreateFrame("Frame")
+sharedTimerFrame.timers = {}
+
+function Attunement:ScheduleTimer(delay, callback)
+    sharedTimerFrame.timers[#sharedTimerFrame.timers + 1] = {
+        time = GetTime() + delay,
+        callback = callback
+    }
+    sharedTimerFrame:Show()
+end
+
+sharedTimerFrame:SetScript("OnUpdate", function(self, elapsed)
+    local currentTime = GetTime()
+    for i = #self.timers, 1, -1 do
+        local timer = self.timers[i]
+        if currentTime >= timer.time then
+            table.remove(self.timers, i)
+            timer.callback()
+        end
+    end
+    if #self.timers == 0 then
+        self:Hide()
+    end
+end)
 
 -- Initialize the module
 function Attunement:Initialize()
@@ -37,32 +62,13 @@ function Attunement:Initialize()
         if addOnName == "SynastriaCoreLib" or addOnName == "SynastriaCoreLib-1.0" then
             frame:UnregisterEvent("ADDON_LOADED")
             -- Wait a short time for SCL to fully initialize
-            local waitFrame = CreateFrame("Frame")
-            waitFrame:SetScript("OnUpdate", function(self, elapsed)
-                self.elapsed = (self.elapsed or 0) + elapsed
-                if self.elapsed >= 1 then
-                    self:SetScript("OnUpdate", nil)
-                    if not Attunement.SCL.GetAttuneProgress then
-                        Attunement:Initialize()
-                    else
-                        Attunement:InitializeCallbacks()
-                    end
+            Attunement:ScheduleTimer(1, function()
+                if not Attunement.SCL.GetAttuneProgress then
+                    Attunement:Initialize()
+                else
+                    Attunement:InitializeCallbacks()
                 end
             end)
-        end
-    end)
-    
-    -- Create update timer frame
-    updateTimer = CreateFrame("Frame")
-    updateTimer:Hide()
-    updateTimer:SetScript("OnUpdate", function(self, elapsed)
-        self.elapsed = (self.elapsed or 0) + elapsed
-        if self.elapsed >= 0.1 then
-            self:Hide()
-            isUpdating = false
-            if SLG.modules.ItemList then
-                SLG.modules.ItemList:UpdateDisplay()
-            end
         end
     end)
     
@@ -74,8 +80,12 @@ end
 function Attunement:QueueUpdate()
     if isUpdating then return end
     isUpdating = true
-    updateTimer.elapsed = 0
-    updateTimer:Show()
+    Attunement:ScheduleTimer(0.1, function()
+        isUpdating = false
+        if SLG.modules.ItemList then
+            SLG.modules.ItemList:UpdateDisplay()
+        end
+    end)
 end
 
 -- Initialize callbacks once SCL is ready
